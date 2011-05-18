@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-# Copyright (c) 2010 by W. Craig Trader
+#----- Copyright (c) 2010 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -34,6 +34,8 @@ import re
 import sys
 import unicodedata
 import xlrd
+
+#----- WBC Event -------------------------------------------------------------
 
 class WbcEvent( object ):
 
@@ -139,6 +141,8 @@ class WbcEvent( object ):
 
         self.type = self.type.strip()
 
+#----- WBC Event (read from CSV spreadsheet) ---------------------------------
+
 class WbcCsvEvent( WbcEvent ):
     def __init__( self, *args ):
         WbcEvent.__init__( self, *args )
@@ -169,6 +173,8 @@ class WbcCsvEvent( WbcEvent ):
                 t = datetime.strptime( self.time, "%I:%M:%S %p" )
 
         self.datetime = d.replace( hour=t.hour, minute=t.minute )
+
+#----- WBC Event (read from Excel spreadsheet) -------------------------------
 
 class WbcXlsEvent( WbcEvent ):
 
@@ -229,6 +235,8 @@ class WbcXlsEvent( WbcEvent ):
 
         self.datetime = d.replace( hour=t.hour, minute=t.minute )
 
+#----- WBC Schedule ----------------------------------------------------------
+
 class WbcSchedule( object ):
     timezone = timezone( 'US/Eastern' )    # Tournament timezone
 
@@ -287,6 +295,9 @@ class WbcSchedule( object ):
             os.makedirs( self.options.output )
 
     def load_tourney_codes( self ):
+        """
+        Load all of the tourney codes (and alternate names) from their data file.
+        """
         codefile = csv.DictReader( open( self.EVENTCODES ), delimiter=';' )
         for row in codefile:
             c = row['Code'].strip()
@@ -301,6 +312,9 @@ class WbcSchedule( object ):
                     self.codes[a] = c
 
     def load_other_codes( self ):
+        """
+        Load all of the non-tourney codes from their data file.
+        """
         codefile = csv.DictReader( open( self.OTHERCODES ), delimiter=';' )
         for row in codefile:
             c = row['Code'].strip()
@@ -328,7 +342,7 @@ class WbcSchedule( object ):
             self.scan_xls_file( filename )
 
     def scan_csv_file( self, filename ):
-        """Read a CSV-formatted file and generate events for each row"""
+        """Read a CSV-formatted file and generate WBC events for each row"""
         eventfile = csv.DictReader( open( filename ) , delimiter=';' )
         i = 2
         for row in eventfile:
@@ -337,6 +351,9 @@ class WbcSchedule( object ):
             i = i + 1
 
     def scan_xls_file( self, filename ):
+        """
+        Read an Excel spreadsheet and generate WBC events for each row.
+        """
         book = xlrd.open_workbook( filename )
         sheet = book.sheet_by_index( 0 )
 
@@ -365,11 +382,11 @@ class WbcSchedule( object ):
         else:
             self.unmatched.append( event )
 
-    def process_all_events( self ):
+    def process_wbc_events( self ):
         for code, list in self.events.items():
             list.sort( lambda x, y: cmp( x.datetime, y.datetime ) )
-            if code == 'PRO':
-                pass
+#            if code == 'PRO':
+#                pass
             for event in list:
                 self.process_event( event )
 
@@ -538,17 +555,25 @@ class WbcSchedule( object ):
         calendar.subcomponents.append( event )
 
     def report_unprocessed_events( self ):
+        """
+        Report on all of the WBC events that were not processed.
+        """
         print "Unprocessed events..."
-
         self.unmatched.sort( cmp=lambda x, y: cmp( x.name, y.name ) )
         for event in self.unmatched:
             print "Row %3d [%s] %s" % ( event.line, event.name, event )
 
-    def write_calendar( self, calendar, name ):
+    def write_calendar_file( self, calendar, name ):
+        """
+        Write an actual calendar file, using a filesystem-safe name.
+        """
         with open( os.path.join( self.options.output, self.safe_calendar_filename( name ) ), "wb" ) as f:
             f.write( self.serialize_calendar( calendar ) )
 
-    def write_calendars( self ):
+    def write_all_calendar_files( self ):
+        """
+        Write all of the calendar files.
+        """
         print "Saving calendars..."
 
         # Create bulk calendars
@@ -566,7 +591,7 @@ class WbcSchedule( object ):
         for code, calendar in self.calendars.items():
 
             # Write the calendar itself
-            self.write_calendar( calendar, code )
+            self.write_calendar_file( calendar, code )
 
             # Add all calendar events to the master calendar
             everything.subcomponents += calendar.subcomponents
@@ -587,18 +612,22 @@ class WbcSchedule( object ):
                 daily.subcomponents.append( event )
 
         # Write the master and tourney calendars
-        self.write_calendar( everything, "all-in-one" )
-        self.write_calendar( tournaments, "tournaments" )
+        self.write_calendar_file( everything, "all-in-one" )
+        self.write_calendar_file( tournaments, "tournaments" )
 
         # Write the location calendars
         for location, calendar in self.locations.items():
-            self.write_calendar( calendar, location )
+            self.write_calendar_file( calendar, location )
 
         # Write the daily calendars
         for date, calendar in self.dailies.items():
-            self.write_calendar( calendar, date )
+            self.write_calendar_file( calendar, date )
 
     def write_index_page( self ):
+        """
+        Using an HTML Template, create an index page that lists 
+        all of the created calendars.
+        """
         print "Saving index page..."
         with open( self.TEMPLATE, "r" ) as f:
             template = f.read()
@@ -668,9 +697,11 @@ class WbcSchedule( object ):
                 other_list.insert( len( other_list ), line )
             else:
                 line.insert( 0, Tag( index, 'span' ) )
+                line.span['class'] = 'eventcode'
                 line.span.insert( 0, NavigableString( self.safe_html( code ) + ': ' ) )
                 line.insert( 1, Tag( index, 'a' ) )
                 line.a['href'] = self.safe_calendar_filename( code )
+                line.a['class'] = 'eventlink'
                 line.a.insert( 0, NavigableString( calendar['summary'] ) )
                 event_list.insert( len( event_list ), line )
 
@@ -698,28 +729,12 @@ class WbcSchedule( object ):
 
     @staticmethod
     def compare_events( x, y ):
+        """
+        Comparison method for iCal events
+        """
         c = cmp( x['dtstart'].dt, y['dtstart'].dt )
-        if c == 0:
-            c = cmp( x['summary'], y['summary'] )
+        c = cmp( x['summary'], y['summary'] ) if not c else c
         return c
-
-    @staticmethod
-    def safe_calendar_filename( name ):
-        if name.__class__ is date:
-            name = name.strftime( "%Y-%m-%d" )
-        else:
-            name = name.strip()
-            name = name.replace( '&', 'n' )
-            name = name.replace( ' ', '_' )
-            name = name.replace( '/', '_' )
-        return "%s.ics" % name
-
-    @staticmethod
-    def safe_html( name ):
-        name = name.replace( '&', '&amp;' )
-        name = name.replace( '<', '&lt;' )
-        name = name.replace( '>', '&gt;' )
-        return name
 
     @staticmethod
     def is_same_calendar_event( e1, e2, altname=None ):
@@ -737,22 +752,44 @@ class WbcSchedule( object ):
             same |= str( e1['summary'] ) == altname
         return same
 
-# ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-# Real work happens here
-# ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
+    @staticmethod
+    def safe_calendar_filename( name ):
+        if name.__class__ is date:
+            name = name.strftime( "%Y-%m-%d" )
+        else:
+            name = name.strip()
+            name = name.replace( '&', 'n' )
+            name = name.replace( ' ', '_' )
+            name = name.replace( '/', '_' )
+        return "%s.ics" % name
 
-schedule = WbcSchedule()
+    @staticmethod
+    def safe_html( name ):
+        """
+        HTML escaping for Dummies.
+        """
+        name = name.replace( '&', '&amp;' )
+        name = name.replace( '<', '&lt;' )
+        name = name.replace( '>', '&gt;' )
+        return name
 
-# Create calendar events from all of the spreadsheet events
-schedule.process_all_events()
+#----- Real work happens here ------------------------------------------------
 
-# Write the individual event calendars
-schedule.write_calendars()
+if __name__ == '__main__':
 
-# Build the HTML index
-schedule.write_index_page()
+    # Load a schedule from a spreadsheet, based upon commandline options.
+    schedule = WbcSchedule()
 
-# Print the unmatched events for rework
-schedule.report_unprocessed_events()
+    # Create calendar events from all of the spreadsheet events.
+    schedule.process_wbc_events()
 
-print "Done."
+    # Write the individual event calendars.
+    schedule.write_all_calendar_files()
+
+    # Build the HTML index.
+    schedule.write_index_page()
+
+    # Print the unmatched events for rework.
+    schedule.report_unprocessed_events()
+
+    print "Done."
