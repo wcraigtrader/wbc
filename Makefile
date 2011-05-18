@@ -25,7 +25,7 @@ clean:
 test:	build compare
 
 fetch:
-	wget -O $(SRCS)$(YEAR).new http://boardgamers.org/downloads/$(SRCS)$(YEAR).xls
+	wget -nv -O $(SRCS)$(YEAR).new http://boardgamers.org/downloads/$(SRCS)$(YEAR).xls
 	@if cmp -s $(SRCS)$(YEAR).new $(SRCS)$(YEAR).xls ; then \
 	rm $(SRCS)$(YEAR).new ; \
 	echo "No changes to $(SRCS)$(YEAR).xls" ; \
