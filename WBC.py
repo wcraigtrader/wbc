@@ -238,6 +238,11 @@ class WbcXlsEvent( WbcEvent ):
 #----- WBC Schedule ----------------------------------------------------------
 
 class WbcSchedule( object ):
+    """
+    The WbcSchedule class parses the entire WBC schedule and creates 
+    iCalendar calendars for each event (with vEvents for each time slot).
+    """
+
     timezone = timezone( 'US/Eastern' )    # Tournament timezone
 
     # Data file names
@@ -271,6 +276,9 @@ class WbcSchedule( object ):
     dailies = {}        # Calendars by date
 
     def __init__( self ):
+        """
+        Initialize a schedule
+        """
         self.processed = datetime.now( self.timezone )
 
         self.process_options()
@@ -281,7 +289,9 @@ class WbcSchedule( object ):
         self.prodid = "WBC %s" % self.options.year
 
     def process_options( self ):
-        """Parse command line options"""
+        """
+        Parse command line options
+        """
 
         parser = OptionParser()
         parser.add_option( "-y", "--year", dest="year", metavar="YEAR", default=self.processed.year, help="Year to process" )
@@ -328,8 +338,9 @@ class WbcSchedule( object ):
             self.names[ c ] = d
 
     def load_events( self ):
-        """Process all of the events in the spreadsheet"""
-
+        """
+        Process all of the events in the spreadsheet
+        """
         print "Scanning schedule spreadsheet..."
         filename = self.options.input
         if self.options.type == 'csv':
@@ -342,7 +353,9 @@ class WbcSchedule( object ):
             self.scan_xls_file( filename )
 
     def scan_csv_file( self, filename ):
-        """Read a CSV-formatted file and generate WBC events for each row"""
+        """
+        Read a CSV-formatted file and generate WBC events for each row
+        """
         eventfile = csv.DictReader( open( filename ) , delimiter=';' )
         i = 2
         for row in eventfile:
@@ -374,6 +387,9 @@ class WbcSchedule( object ):
             self.categorize_event( event )
 
     def categorize_event( self, event ):
+        """
+        Assign a spreadsheet entry to a matching event code.
+        """
         if event.code:
             if self.events.has_key( event.code ):
                 self.events[event.code].append( event )
@@ -383,6 +399,9 @@ class WbcSchedule( object ):
             self.unmatched.append( event )
 
     def process_wbc_events( self ):
+        """
+        Process all of the spreadsheet entries, by event code, then by time.
+        """
         for code, list in self.events.items():
             list.sort( lambda x, y: cmp( x.datetime, y.datetime ) )
 #            if code == 'PRO':
@@ -391,7 +410,8 @@ class WbcSchedule( object ):
                 self.process_event( event )
 
     def process_event( self, event ):
-        """For a spreadsheet entry, generate calendar events as follows:
+        """
+        For a spreadsheet entry, generate calendar events as follows:
         
         If the entry has rounds, add calendar events for each round.
         If the entry is marked as continuous, and the code is WAW, 
@@ -417,7 +437,9 @@ class WbcSchedule( object ):
             self.process_normal_event( calendar, event )
 
     def process_normal_event( self, calendar, event ):
-        """Process 1 event"""
+        """
+        Process a spreadsheet entry that maps to a single event.
+        """
         name = event.name + ' ' + event.type
         alternative = self.alternate_round_name( event )
         if alternative:
@@ -426,7 +448,9 @@ class WbcSchedule( object ):
             self.add_event( calendar, event, name=name, replace=False )
 
     def process_continuous_event( self, calendar, event ):
-        """Process multiple back-to-back events that are not rounds"""
+        """
+        Process multiple back-to-back events that are not rounds, per se.
+        """
         start = event.datetime
         for type in event.type.split( '/' ):
             name = event.name + ' ' + type
@@ -435,7 +459,9 @@ class WbcSchedule( object ):
             start = start + event.length
 
     def process_event_with_rounds( self, calendar, event ):
-        """Process multiple back-to-back rounds"""
+        """
+        Process multiple back-to-back rounds
+        """
         start = event.datetime
         name = event.name + ' ' + event.type
         name = name.strip()
@@ -458,7 +484,9 @@ class WbcSchedule( object ):
                 start = next
 
     def process_all_week_event( self, calendar, event ):
-        """Process an event that runs contiuously all week long"""
+        """
+        Process an event that runs contiuously all week long.
+        """
         start = event.datetime
         remaining = event.length
         while ( remaining.days or remaining.seconds ):
@@ -473,6 +501,23 @@ class WbcSchedule( object ):
             remaining = remaining - duration
 
     def alternate_round_name( self, event, type=None ):
+        """
+        Create the equivalent round name for a given event.
+        
+        At WBC, a tournament is typically composed a set of elimination rounds.
+        The first round can be composed of multiple qualification heats, and 
+        a tournament may also include a mulligan round.  After that, rounds are
+        identified by the round number (eg: R2/4 represents Round 2 of 4).
+        To make matters more complicated, the last round of a tournament is 
+        typically labeled 'F' for Final, and the next-to-last round would be
+        'SF' for SemiFinal.  For a large enough tournament, there may even be
+        a quarter-final round.  Thus it is possible to see a tourney with multiple 
+        heats (H1, H2, H3), and then R2/6, R3/6, QF, SF, F, where R4/6 = QF, 
+        R5/6 = SF, and R6/6 = F.
+        
+        This method will calculate what the generic round name should be, 
+        if the current event type is 'QF', 'SF', or 'F'.   
+        """
         type = type if type else event.type
 
         alternative = None
@@ -483,6 +528,10 @@ class WbcSchedule( object ):
         return alternative
 
     def get_or_create_event_calendar( self, code ):
+        """
+        For a given event code, return the iCalendar that matches that code.
+        If there is no pre-existing calendar, create a new one.
+        """
         if self.calendars.has_key( code ):
             return self.calendars[ code ]
 
@@ -497,7 +546,10 @@ class WbcSchedule( object ):
         return calendar
 
     def get_or_create_location_calendar( self, location ):
-
+        """
+        For a given location, return the iCalendar that matches that location.
+        If there is no pre-existing calendar, create a new one.
+        """
         location = str( location ).strip()
         if self.locations.has_key( location ):
             return self.locations[ location ]
@@ -513,6 +565,10 @@ class WbcSchedule( object ):
         return calendar
 
     def get_or_create_daily_calendar( self, date ):
+        """
+        For a given date, return the iCalendar that matches that date.
+        If there is no pre-existing calendar, create a new one.
+        """
         key = date.dt.date()
         name = date.dt.strftime( '%A, %B %d' )
 
@@ -529,18 +585,20 @@ class WbcSchedule( object ):
 
         return calendar
 
-    def add_event( self, calendar, event, start=None, duration=None, name=None, altname=None, replace=True ):
-
-        name = name if name else event.name
-        start = start if start else event.datetime
-        duration = duration if duration else event.length
+    def add_event( self, calendar, entry, start=None, duration=None, name=None, altname=None, replace=True ):
+        """
+        Add a new vEvent to the given iCalendar for a given spreadsheet entry.
+        """
+        name = name if name else entry.name
+        start = start if start else entry.datetime
+        duration = duration if duration else entry.length
 
         e = Event()
         e.add( 'SUMMARY', name )
         e.add( 'DTSTART', self.timezone.localize( start ) )
         e.add( 'DURATION', duration )
-        e.add( 'LOCATION', event.location )
-        e.add( 'ORGANIZER', event.gm )
+        e.add( 'LOCATION', entry.location )
+        e.add( 'ORGANIZER', entry.gm )
 
         if replace:
             self.add_or_replace_event( calendar, e, altname )
@@ -548,6 +606,10 @@ class WbcSchedule( object ):
             calendar.add_component( e )
 
     def add_or_replace_event( self, calendar, event, altname=None ):
+        """
+        Insert a vEvent into an iCalendar.  
+        If the vEvent 'matches' an existing vEvent, replace the existing vEvent instead.  
+        """
         for i in range( len( calendar.subcomponents ) ):
             if self.is_same_icalendar_event( calendar.subcomponents[i], event, altname ):
                 calendar.subcomponents[i] = event
@@ -556,9 +618,9 @@ class WbcSchedule( object ):
 
     def report_unprocessed_events( self ):
         """
-        Report on all of the WBC events that were not processed.
+        Report on all of the WBC schedule entries that were not processed.
         """
-        print "Unprocessed events..."
+        print "Unprocessed entries ..."
         self.unmatched.sort( cmp=lambda x, y: cmp( x.name, y.name ) )
         for event in self.unmatched:
             print "Row %3d [%s] %s" % ( event.line, event.name, event )
@@ -567,7 +629,7 @@ class WbcSchedule( object ):
         """
         Write an actual calendar file, using a filesystem-safe name.
         """
-        filename = self.safe_ics_filename(name)
+        filename = self.safe_ics_filename( name )
         with open( os.path.join( self.options.output, filename ), "wb" ) as f:
             f.write( self.serialize_calendar( calendar ) )
 
@@ -776,6 +838,11 @@ class WbcSchedule( object ):
         name = name.replace( '<', '&lt;' )
         name = name.replace( '>', '&gt;' )
         return name
+
+#----- WBC YearBook ----------------------------------------------------------
+
+class WbcYearBook( object ):
+    pass
 
 #----- Real work happens here ------------------------------------------------
 
