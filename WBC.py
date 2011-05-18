@@ -549,7 +549,7 @@ class WbcSchedule( object ):
 
     def add_or_replace_event( self, calendar, event, altname=None ):
         for i in range( len( calendar.subcomponents ) ):
-            if self.is_same_calendar_event( calendar.subcomponents[i], event, altname ):
+            if self.is_same_icalendar_event( calendar.subcomponents[i], event, altname ):
                 calendar.subcomponents[i] = event
                 return
         calendar.subcomponents.append( event )
@@ -567,7 +567,8 @@ class WbcSchedule( object ):
         """
         Write an actual calendar file, using a filesystem-safe name.
         """
-        with open( os.path.join( self.options.output, self.safe_calendar_filename( name ) ), "wb" ) as f:
+        filename = self.safe_ics_filename(name)
+        with open( os.path.join( self.options.output, filename ), "wb" ) as f:
             f.write( self.serialize_calendar( calendar ) )
 
     def write_all_calendar_files( self ):
@@ -652,14 +653,14 @@ class WbcSchedule( object ):
         # All-in-One calendar
         line = Tag( index, 'li' )
         line.insert( 0, Tag( index, 'a' ) )
-        line.a['href'] = self.safe_calendar_filename( "all-in-one" )
+        line.a['href'] = self.safe_ics_filename( "all-in-one" )
         line.a.insert( 0, NavigableString( 'WBC %s All-in-One Schedule' % self.options.year ) )
         every_list.insert( len( every_list ), line )
 
         # All tournaments calendar
         line = Tag( index, 'li' )
         line.insert( 0, Tag( index, 'a' ) )
-        line.a['href'] = self.safe_calendar_filename( "tournaments" )
+        line.a['href'] = self.safe_ics_filename( "tournaments" )
         line.a.insert( 0, NavigableString( 'WBC %s Tournaments Schedule' % self.options.year ) )
         every_list.insert( len( every_list ), line )
 
@@ -670,7 +671,7 @@ class WbcSchedule( object ):
             calendar = self.locations[location]
             line = Tag( index, 'li' )
             line.insert( 0, Tag( index, 'a' ) )
-            line.a['href'] = self.safe_calendar_filename( location )
+            line.a['href'] = self.safe_ics_filename( location )
             line.a.insert( 0, NavigableString( '%s Schedule' % location ) )
             place_list.insert( len( place_list ), line )
 
@@ -681,7 +682,7 @@ class WbcSchedule( object ):
             calendar = self.dailies[date]
             line = Tag( index, 'li' )
             line.insert( 0, Tag( index, 'a' ) )
-            line.a['href'] = self.safe_calendar_filename( date )
+            line.a['href'] = self.safe_ics_filename( date )
             line.a.insert( 0, NavigableString( '%s Schedule' % date.strftime( '%A, %B %d' ) ) )
             daily_list.insert( len( daily_list ), line )
 
@@ -692,7 +693,7 @@ class WbcSchedule( object ):
             line = Tag( index, 'li' )
             if code in self.special:
                 line.insert( 0, Tag( index, 'a' ) )
-                line.a['href'] = self.safe_calendar_filename( code )
+                line.a['href'] = self.safe_ics_filename( code )
                 line.a.insert( 0, NavigableString( calendar['summary'] ) )
                 other_list.insert( len( other_list ), line )
             else:
@@ -700,7 +701,7 @@ class WbcSchedule( object ):
                 line.span['class'] = 'eventcode'
                 line.span.insert( 0, NavigableString( self.safe_html( code ) + ': ' ) )
                 line.insert( 1, Tag( index, 'a' ) )
-                line.a['href'] = self.safe_calendar_filename( code )
+                line.a['href'] = self.safe_ics_filename( code )
                 line.a['class'] = 'eventlink'
                 line.a.insert( 0, NavigableString( calendar['summary'] ) )
                 event_list.insert( len( event_list ), line )
@@ -719,7 +720,7 @@ class WbcSchedule( object ):
         3) The iCalendar library doesn't sort the events in a given calendar by date/time.
         """
         c = calendar
-        c.subcomponents.sort( cmp=cls.compare_events )
+        c.subcomponents.sort( cmp=cls.compare_icalendar_events )
 
         s = c.as_string()
         s = s.replace( "\r\nVERSION:2.0", "" )
@@ -728,7 +729,7 @@ class WbcSchedule( object ):
         return s
 
     @staticmethod
-    def compare_events( x, y ):
+    def compare_icalendar_events( x, y ):
         """
         Comparison method for iCal events
         """
@@ -737,7 +738,7 @@ class WbcSchedule( object ):
         return c
 
     @staticmethod
-    def is_same_calendar_event( e1, e2, altname=None ):
+    def is_same_icalendar_event( e1, e2, altname=None ):
         """
         Compare two events to determine if they are 'the same'.
         
@@ -753,7 +754,10 @@ class WbcSchedule( object ):
         return same
 
     @staticmethod
-    def safe_calendar_filename( name ):
+    def safe_ics_filename( name ):
+        """
+        Given an object, determine a web-safe filename from it, then append '.ics'.
+        """
         if name.__class__ is date:
             name = name.strftime( "%Y-%m-%d" )
         else:
