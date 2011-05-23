@@ -794,81 +794,113 @@ class WbcSchedule( object ):
         with open( self.TEMPLATE, "r" ) as f:
             template = f.read()
 
-        index = BeautifulSoup( template )
+        parser = BeautifulSoup( template )
 
         # Locate insertion points
-        title = index.find( 'title' )
-        header = index.find( 'div', { 'id' : 'header' } )
-        footer = index.find( 'div', { 'id' : 'footer' } )
-        event_list = index.find( 'div', { 'id' : 'tournaments' } ).ol
-        other_list = index.find( 'div', { 'id' : 'other' } ).ul
-        every_list = index.find( 'div', { 'id' : 'special' } ).ul
-        daily_list = index.find( 'div', { 'id' : 'daily' } ).ul
-        place_list = index.find( 'div', { 'id' : 'location' } ).ul
+        title = parser.find( 'title' )
+        header = parser.find( 'div', { 'id' : 'header' } )
+        footer = parser.find( 'div', { 'id' : 'footer' } )
 
         # Page title
         title.insert( 0, NavigableString( "WBC %s Event Schedule" % self.options.year ) )
         header.h1.insert( 0, NavigableString( "WBC %s Event Schedule" % self.options.year ) )
         footer.p.insert( 0, NavigableString( "Updated on %s" % self.processed.strftime( "%A, %d %B %Y %H:%M %Z" ) ) )
 
-        # All-in-One calendar
-        line = Tag( index, 'li' )
-        line.insert( 0, Tag( index, 'a' ) )
-        line.a['href'] = self.safe_ics_filename( "all-in-one" )
-        line.a.insert( 0, NavigableString( 'WBC %s All-in-One Schedule' % self.options.year ) )
-        every_list.insert( len( every_list ), line )
+        # Tournament event calendars
+        tourneys = dict( [( k, v ) for k, v in self.calendars.items() if k not in self.special ] )
+        ordering = lambda x, y: cmp( tourneys[x]['summary'], tourneys[y]['summary'] )
+        self.render_calendar_table( parser, 'tournaments', 'Tournament Events', tourneys, ordering )
 
-        # All tournaments calendar
-        line = Tag( index, 'li' )
-        line.insert( 0, Tag( index, 'a' ) )
-        line.a['href'] = self.safe_ics_filename( "tournaments" )
-        line.a.insert( 0, NavigableString( 'WBC %s Tournaments Schedule' % self.options.year ) )
-        every_list.insert( len( every_list ), line )
+        # Non-tourney event calendars
+        nontourneys = dict( [( k, v ) for k, v in self.calendars.items() if k in self.special ] )
+        self.render_calendar_list( parser, 'other', 'Other Events', nontourneys )
 
         # Location calendars
-        keys = self.locations.keys()
-        keys.sort()
-        for location in keys:
-            calendar = self.locations[location]
-            line = Tag( index, 'li' )
-            line.insert( 0, Tag( index, 'a' ) )
-            line.a['href'] = self.safe_ics_filename( location )
-            line.a.insert( 0, NavigableString( '%s Schedule' % location ) )
-            place_list.insert( len( place_list ), line )
+        self.render_calendar_list( parser, 'location', 'Location Calendars', self.locations )
 
         # Daily calendars
-        keys = self.dailies.keys()
-        keys.sort()
-        for date in keys:
-            calendar = self.dailies[date]
-            line = Tag( index, 'li' )
-            line.insert( 0, Tag( index, 'a' ) )
-            line.a['href'] = self.safe_ics_filename( date )
-            line.a.insert( 0, NavigableString( '%s Schedule' % date.strftime( '%A, %B %d' ) ) )
-            daily_list.insert( len( daily_list ), line )
+        self.render_calendar_list( parser, 'daily', 'Daily Calendars', self.dailies )
 
-        # Individual calendars
-        calendar_list = self.calendars.items()
-        calendar_list.sort( cmp=lambda x, y: cmp( x[1]['SUMMARY'], y[1]['SUMMARY'] ) )
-        for code, calendar in calendar_list:
-            line = Tag( index, 'li' )
-            if code in self.special:
-                line.insert( 0, Tag( index, 'a' ) )
-                line.a['href'] = self.safe_ics_filename( code )
-                line.a.insert( 0, NavigableString( calendar['summary'] ) )
-                other_list.insert( len( other_list ), line )
-            else:
-                line.insert( 0, Tag( index, 'span' ) )
-                line.span['class'] = 'eventcode'
-                line.span.insert( 0, NavigableString( self.safe_html( code ) + ': ' ) )
-                line.insert( 1, Tag( index, 'a' ) )
-                line.a['href'] = self.safe_ics_filename( code )
-                line.a['class'] = 'eventlink'
-                line.a.insert( 0, NavigableString( calendar['summary'] ) )
-                event_list.insert( len( event_list ), line )
+        # Special event calendars
+        specials = {}
+        specials['all-in-one'] = self.everything
+        specials['tournaments'] = self.tournaments
+        self.render_calendar_list( parser, 'special', 'Special Calendars', specials )
 
         with open( os.path.join( self.options.output, "index.html" ), "w" ) as f:
-            f.write( index.prettify() )
+            f.write( parser.prettify() )
+
+    @classmethod
+    def render_calendar_table( cls, parser, id, label, calendar_map, comparison=None ):
+
+        keys = calendar_map.keys()
+        keys.sort( comparison )
+
+        div = parser.find( 'div', { 'id' : id } )
+        div.insert( 0, Tag( parser, 'h2' ) )
+        div.h2.insert( 0, NavigableString( label ) )
+        div.insert( 1, Tag( parser, 'table' ) )
+
+        for row_keys in cls.split_list( keys, 2 ):
+            tr = Tag( parser, 'tr' )
+            div.table.insert( len( div.table ), tr )
+
+            for key in row_keys:
+                label = calendar_map[ key ]['summary'] if key else ''
+                td = cls.render_calendar_table_entry( parser, key, label )
+                tr.insert( len( tr ), td )
+
+    @classmethod
+    def render_calendar_table_entry( cls, parser, key, label ):
+        td = Tag( parser, 'td' )
+        if key:
+            span = Tag( parser, 'span' )
+            span['class'] = 'eventcode'
+            span.insert( 0, NavigableString( cls.safe_html( key ) + ': ' ) )
+            a = Tag( parser, 'a' )
+            a['class'] = 'eventlink'
+            a['href'] = cls.safe_ics_filename( key )
+            a.insert( 0, NavigableString( cls.safe_html( "%s" % label ) ) )
+            td.insert( 0, span )
+            td.insert( 1, a )
+        else:
+            td.insert( 0, NavigableString( '&nbsp;' ) )
+        return td
+
+    @staticmethod
+    def split_list( original, width ):
+        max = len( original )
+        length = ( max + width - 1 ) / width
+        for i in range( length ):
+            partial = []
+            for j in range( width ):
+                k = i + j * length
+                partial.append( original[k] if k < max else None )
+            yield partial
+
+    @classmethod
+    def render_calendar_list( cls, parser, id, label, calendar_map, comparison=None ):
+
+        keys = calendar_map.keys()
+        keys.sort( comparison )
+
+        div = parser.find( 'div', { 'id' : id } )
+        div.insert( 0, Tag( parser, 'h2' ) )
+        div.h2.insert( 0, NavigableString( label ) )
+        div.insert( 1, Tag( parser, 'ul' ) )
+
+        for key in keys:
+            calendar = calendar_map[ key ]
+            cls.render_calendar_list_item( parser, div.ul, key, calendar['summary'] )
+
+    @classmethod
+    def render_calendar_list_item( cls, parser, list, key, label ):
+
+        li = Tag( parser, 'li' )
+        li.insert( 0, Tag( parser, 'a' ) )
+        li.a['href'] = cls.safe_ics_filename( key )
+        li.a.insert( 0, NavigableString( cls.safe_html( "%s" % label ) ) )
+        list.insert( len( list ), li )
 
     @classmethod
     def serialize_calendar( cls, calendar ):
@@ -937,7 +969,7 @@ class WbcSchedule( object ):
         name = name.replace( '>', '&gt;' )
         return name
 
-#----- WBC Schedule Table ----------------------------------------------------
+#----- WBC All-in-One Schedule -----------------------------------------------
 
 class WbcAllInOne( object ):
     """
@@ -1177,18 +1209,24 @@ class WbcYearBook( object ):
 if __name__ == '__main__':
 
     # Load a schedule from a spreadsheet, based upon commandline options.
-    # Create calendar events from all of the spreadsheet events.
-    # Write the individual event calendars.
-    # Build the HTML index.
-    # Print the unmatched events for rework.
-
     schedule = WbcSchedule()
+
+    # Create calendar events from all of the spreadsheet events.
     schedule.create_wbc_calendars()
+
+    # Write the individual event calendars.
     schedule.write_all_calendar_files()
+
+    # Build the HTML index.
     schedule.write_index_page()
+
+    # Print the unmatched events for rework.
     schedule.report_unprocessed_events()
 
+    # Parse the WBC All-in-One schedule
     table = WbcAllInOne( schedule )
+
+    # Compare the event calendars with the WBC All-in-One schedule
     table.verify_event_calendars()
 
     logger.info( "Done." )

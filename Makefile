@@ -16,7 +16,8 @@ compare:
 	@$(SHELL) compare-live-test
 
 push:
-	rsync -v -rltD --delete test/ live/$(YEAR)/
+	rsync -v -rltD --delete test/ trader.name:/data/web/trader/wbc/$(YEAR)/
+	# rsync -v -rltD --delete test/ live/$(YEAR)/
 
 clean:
 	rm -rf test
