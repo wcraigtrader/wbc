@@ -99,39 +99,6 @@ class WbcEvent( object ):
     def __repr__( self ):
         return repr( self.__dict__ )
 
-    def checkcodes( self ):
-        self.code = None
-
-        # Check for tournament codes
-        if self.schedule.codes.has_key( self.name ):
-            self.code = self.schedule.codes[ self.name ]
-            self.name = self.schedule.names[ self.code ]
-
-            # If this event has rounds, save them for later use
-            if self.rounds:
-                self.schedule.rounds[ self.code ] = self.rounds
-
-        else:
-            # Check for non-tournament groupings
-            for o in self.schedule.others:
-                if ( ( o['format'] and o['format'] == self.format ) or
-                    ( o['name'] and o['name'] == self.name ) ):
-                    self.code = o['code']
-                    return
-
-    def checkduration( self ):
-        if self.__dict__.has_key( 'continuous' ):
-            self.continuous = ( self.continuous in ( 'C', 'Y' ) )
-        else:
-            self.continuous = False
-
-        if self.duration.endswith( "q" ):
-            self.continuous = True
-            self.duration = self.duration[:-1]
-
-        if self.duration and self.duration != '-':
-            self.length = timedelta( minutes=60 * float( self.duration ) )
-
     def checkrounds( self ):
         match = re.search( r'([HR]?)(\d+)/(\d+)$', self.name )
         if match:
@@ -157,6 +124,39 @@ class WbcEvent( object ):
                     self.grognard = True
 
         self.type = self.type.strip()
+
+    def checkduration( self ):
+        if self.__dict__.has_key( 'continuous' ):
+            self.continuous = ( self.continuous in ( 'C', 'Y' ) )
+        else:
+            self.continuous = False
+
+        if self.duration.endswith( "q" ):
+            self.continuous = True
+            self.duration = self.duration[:-1]
+
+        if self.duration and self.duration != '-':
+            self.length = timedelta( minutes=60 * float( self.duration ) )
+
+    def checkcodes( self ):
+        self.code = None
+
+        # Check for tournament codes
+        if self.schedule.codes.has_key( self.name ):
+            self.code = self.schedule.codes[ self.name ]
+            self.name = self.schedule.names[ self.code ]
+
+            # If this event has rounds, save them for later use
+            if self.rounds:
+                self.schedule.rounds[ self.code ] = self.rounds
+
+        else:
+            # Check for non-tournament groupings
+            for o in self.schedule.others:
+                if ( ( o['format'] and o['format'] == self.format ) or
+                    ( o['name'] and o['name'] == self.name ) ):
+                    self.code = o['code']
+                    return
 
 #----- WBC Event (read from CSV spreadsheet) ---------------------------------
 
@@ -214,7 +214,7 @@ class WbcXlsEvent( WbcEvent ):
             elif val.ctype == xlrd.XL_CELL_TEXT:
                 val = unicodedata.normalize( 'NFKD', val.value ).encode( 'ascii', 'ignore' ).strip()
             elif val.ctype == xlrd.XL_CELL_NUMBER:
-                val = str( int( val.value ) )
+                val = str( float( val.value ) )
             elif val.ctype == xlrd.XL_CELL_DATE:
                 val = xlrd.xldate_as_tuple( val.value, datemode )
                 if val[0]:
@@ -235,12 +235,15 @@ class WbcXlsEvent( WbcEvent ):
             t = self.time
         else:
             try:
-                t = int( self.time )
+                t = float( self.time )
                 if t > 23:
                     t = time( 23, 59 )
                     self.length = timedelta( minutes=1 )
                 else:
-                    t = time( t )
+                    m = t * 60
+                    h = int( m / 60 )
+                    m = int( m % 60 )
+                    t = time( h, m )
             except:
                 try:
                     t = datetime.strptime( self.time, "%H:%M" )
@@ -285,8 +288,10 @@ class WbcSchedule( object ):
     codes = {}          # Name -> Code map for events
     names = {}          # Code -> Name map for events
 
-    rounds = {}         # Number of rounds for events that have rounds
     durations = {}      # Special durations for events that have them
+    playlate = {}       # Flag for events that may run past midnight
+
+    rounds = {}         # Number of rounds for events that have rounds
     events = {}         # Events, grouped by code and then sorted by start date/time
     unmatched = []      # List of spreadsheet rows that don't match any coded events
     calendars = {}      # Calendars for each event code
@@ -345,6 +350,9 @@ class WbcSchedule( object ):
 
             if row['Duration']:
                 self.durations[c] = int( row['Duration'] )
+
+            if row['PlayLate']:
+                self.playlate[c] = row['PlayLate'].strip().lower()
 
             for altname in [ 'Alt1', 'Alt2', 'Alt3', 'Alt4', 'Alt5', 'Alt6']:
                 if row[altname]:
@@ -453,8 +461,6 @@ class WbcSchedule( object ):
 
         for code, list in self.events.items():
             list.sort( lambda x, y: cmp( x.datetime, y.datetime ) )
-#            if code == 'PRO':
-#                pass
             for event in list:
                 self.process_event( event )
 
@@ -512,6 +518,9 @@ class WbcSchedule( object ):
 
         calendar = self.get_or_create_event_calendar( event.code )
 
+        if event.code in ( 'CNS', 'ELC', 'LID', 'SLS' ):
+            pass
+
         if event.code == 'WAW':
             self.process_all_week_event( calendar, event )
         elif event.freeformat and event.grognard:
@@ -538,43 +547,70 @@ class WbcSchedule( object ):
         else:
             self.add_event( calendar, event, name=name, replace=False )
 
-    def process_continuous_event( self, calendar, event ):
+    def process_continuous_event( self, calendar, entry ):
         """
         Process multiple back-to-back events that are not rounds, per se.
         """
-        start = event.datetime
-        for type in event.type.split( '/' ):
-            name = event.name + ' ' + type
-            alternative = self.alternate_round_name( event, type )
-            self.add_event( calendar, event, start=start, name=name, altname=alternative )
+        start = entry.datetime
+        for type in entry.type.split( '/' ):
+            name = entry.name + ' ' + type
+            alternative = self.alternate_round_name( entry, type )
+            self.add_event( calendar, entry, start=start, name=name, altname=alternative )
+            start = self.calculate_next_start_time( entry, start )
 
-            # Check for rounds that would begin after midnight
-            next = start + event.length
-            if next.toordinal() > start.toordinal():
-                start = datetime( next.year, next.month, next.day, 9, 0, 0 )
-            else:
-                start = next
-
-    def process_event_with_rounds( self, calendar, event ):
+    def process_event_with_rounds( self, calendar, entry ):
         """
         Process multiple back-to-back rounds
         """
-        start = event.datetime
-        name = event.name + ' ' + event.type
+        start = entry.datetime
+        name = entry.name + ' ' + entry.type
         name = name.strip()
 
-        rounds = range( int( event.start ), int( event.rounds ) + 1 )
+        rounds = range( int( entry.start ), int( entry.rounds ) + 1 )
         for r in rounds:
-            duration = event.length
-            label = "%s R%s/%s" % ( name, r, event.rounds )
-            self.add_event( calendar, event, start=start, duration=duration, name=label )
+            label = "%s R%s/%s" % ( name, r, entry.rounds )
+            self.add_event( calendar, entry, start=start, name=label )
+            start = self.calculate_next_start_time( entry, start )
 
-            # Check for rounds that would begin after midnight
-            next = start + duration
-            if next.toordinal() > start.toordinal():
-                start = datetime( next.year, next.month, next.day, 9, 0, 0 )
-            else:
-                start = next
+    def calculate_next_start_time( self, entry, start ):
+        """
+        Calculate when to start the next round.
+        
+        In theory, WBC runs from 9am to midnight.  Thus rounds that would 
+        otherwise begin or end after midnight should be postponed until 
+        9am the next morning.  There are two types of exceptions to this
+        rule:  
+        
+        (1) some events run their finals directly after the semi-finals conclude,
+            which can cause the final to run past midnight.
+        (2) some events are scheduled to run multiple rounds past midnight.
+        """
+
+        # Calculate midnight, relative to the last event's start time
+        midnight = datetime.fromordinal( start.toordinal() + 1 )
+
+        # Calculate 9am tomorrow
+        tomorrow = datetime( midnight.year, midnight.month, midnight.day, 9, 0, 0 )
+
+        # Nominal start time and end time for the next event
+        next_start = start + entry.length
+        next_end = next_start + entry.length
+
+        # Lookup the override code for this event
+        playlate = self.playlate.get( entry.code, None )
+
+        if playlate == 'all':
+            pass # always
+        elif next_start > midnight:
+            next_start = tomorrow
+        elif next_end <= midnight:
+            pass
+        elif playlate == 'once':
+            pass
+        else:
+            next_start = tomorrow
+
+        return next_start
 
     def process_freeformat_swel_event( self, calendar, entry ):
         """
@@ -1111,9 +1147,10 @@ class WbcAllInOne( object ):
         cal_events = calendar.subcomponents
 
         # Remove calendar events that aren't on the schedule table
-        cal_events = [ e for e in cal_events if not e['summary'].endswith( 'Jr' )]
-        cal_events = [ e for e in cal_events if not e['summary'].endswith( 'After Action' )]
-        cal_events = [ e for e in cal_events if not e['summary'].endswith( 'Draft' )]
+        cal_events = [ e for e in cal_events if not e['summary'].endswith( 'Jr' ) ]
+        cal_events = [ e for e in cal_events if not e['summary'].endswith( 'After Action' ) ]
+        cal_events = [ e for e in cal_events if not e['summary'].endswith( 'Draft' ) ]
+        cal_events = [ e for e in cal_events if e['dtstart'].dt.minute == 0 ]
 
         tab_comparison = [ self.ev_date_loc( x ) for x in tab_events ]
         cal_comparison = [ self.sc_date_loc( x ) for x in cal_events ]
