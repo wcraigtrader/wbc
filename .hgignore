@@ -7,3 +7,6 @@ syntax: regexp
 ^test$
 syntax: regexp
 \.xls$
+
+syntax: regexp
+^save$

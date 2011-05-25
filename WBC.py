@@ -331,7 +331,6 @@ class WbcSchedule( object ):
 
         self.year = self.options.year
         self.first_day = datetime( self.year, 12, 31 )
-        self.last_day = datetime( self.year, 1, 1 )
 
     def load_tourney_codes( self ):
         """
@@ -449,7 +448,6 @@ class WbcSchedule( object ):
             self.unmatched.append( event )
 
         self.first_day = event.date if event.date < self.first_day else self.first_day
-        self.last_day = event.date if event.date > self.last_day else self.last_day
 
     def create_wbc_calendars( self ):
         """
@@ -459,7 +457,7 @@ class WbcSchedule( object ):
 
         logger.info( 'Creating calendars' )
 
-        for code, list in self.events.items():
+        for list in self.events.values():
             list.sort( lambda x, y: cmp( x.datetime, y.datetime ) )
             for event in list:
                 self.process_event( event )
@@ -1178,68 +1176,6 @@ class WbcAllInOne( object ):
         location = ev.location
         location = 'Terrace' if location == 'Pt' else location
         return '%s : %s' % ( date.strftime( '%m-%d %H:%M:%S' ), location )
-
-#----- WBC YearBook ----------------------------------------------------------
-
-class WbcYearBook( object ):
-    """Incomplete"""
-
-    SITE_URL = 'http://boardgamers.org/yearbkex/%spge.htm'
-
-    class YearBookEvent( object ):
-        pass
-
-    def __init__( self, schedule, code ):
-        self.schedule = schedule
-        self.code = code.lower()
-        self.load_yearbook_page()
-
-    def load_yearbook_page( self ):
-        self.page = parse_url( self.SITE_URL % self.code )
-        if not self.page:
-            return
-
-        tables = self.page.findAll( 'table' )
-        rows = tables[2].findAll( 'tr' )
-        cells = []
-        for row in rows:
-            for td in row.findAll( 'td' ):
-                cells.append( td )
-        self.find_times( cells )
-        self.find_locations( cells )
-
-    def find_times( self, cells ):
-        start_date = self.schedule.first_day
-        for cell in cells:
-            print '---'
-            for tag in cell.findAll():
-                if tag.name == 'img':
-                    start_date = self.check_day( tag, start_date )
-                    next_round = self.check_round( tag )
-
-                    print tag.name, tag['src']
-        pass
-
-
-    def find_locations( self, cells ):
-        pass
-
-    days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
-    def check_day( self, tag, current_date ):
-        day = self.re_search( r'(MON|TUE|WED|THU|FRI|SAT|SUN)2.GIF', tag['src'] )
-        if day in self.days:
-            day = self.days.index( day )
-            while current_date.weekday() != day:
-                current_date = current_date + timedelta( days=1 )
-        return current_date
-
-    def check_round( self, tag ):
-        return None
-
-    def re_search( self, pattern, text ):
-        check = re.search( pattern, text )
-        return check.group( 1 ) if check else ''
-
 
 #----- Real work happens here ------------------------------------------------
 
