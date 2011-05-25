@@ -1,6 +1,7 @@
 #! /bin/bash
 
 LIVE=live/2011
+LIVE=save
 TEST=test
 
 files=$(cd ${TEST} ; ls *.ics | egrep -v 'all-in-one.ics|tournaments.ics')
