@@ -24,11 +24,12 @@
 # sudo pip install xlrd
 
 from BeautifulSoup import BeautifulSoup, Tag, NavigableString
+from cgi import escape
 from datetime import date, datetime, time, timedelta
 from icalendar import Calendar, Event
+from itertools import izip_longest
 from optparse import OptionParser
 from pytz import timezone
-from itertools import izip_longest
 import csv
 import logging
 import os
@@ -37,7 +38,7 @@ import unicodedata
 import urllib2
 import xlrd
 
-logging.basicConfig( level=logging.INFO )
+logging.basicConfig( level=logging.WARN )
 logger = logging.getLogger( 'WBC' )
 
 #----- Utility methods -------------------------------------------------------
@@ -890,11 +891,11 @@ class WbcSchedule( object ):
         if key:
             span = Tag( parser, 'span' )
             span['class'] = 'eventcode'
-            span.insert( 0, NavigableString( cls.safe_html( key ) + ': ' ) )
+            span.insert( 0, NavigableString( escape( key ) + ': ' ) )
             a = Tag( parser, 'a' )
             a['class'] = 'eventlink'
             a['href'] = cls.safe_ics_filename( key )
-            a.insert( 0, NavigableString( cls.safe_html( "%s" % label ) ) )
+            a.insert( 0, NavigableString( escape( "%s" % label ) ) )
             td.insert( 0, span )
             td.insert( 1, a )
         else:
@@ -933,7 +934,7 @@ class WbcSchedule( object ):
         li = Tag( parser, 'li' )
         li.insert( 0, Tag( parser, 'a' ) )
         li.a['href'] = cls.safe_ics_filename( key )
-        li.a.insert( 0, NavigableString( cls.safe_html( "%s" % label ) ) )
+        li.a.insert( 0, NavigableString( escape( "%s" % label ) ) )
         list.insert( len( list ), li )
 
     @classmethod
@@ -993,16 +994,6 @@ class WbcSchedule( object ):
             name = name.replace( '/', '_' )
         return "%s.ics" % name
 
-    @staticmethod
-    def safe_html( name ):
-        """
-        HTML escaping for Dummies.
-        """
-        name = name.replace( '&', '&amp;' )
-        name = name.replace( '<', '&lt;' )
-        name = name.replace( '>', '&gt;' )
-        return name
-
 #----- WBC All-in-One Schedule -----------------------------------------------
 
 class WbcAllInOne( object ):
@@ -1044,6 +1035,7 @@ class WbcAllInOne( object ):
         self.load_table()
 
     def load_table( self ):
+        """Parse the All-in-One schedule table (HTML)"""
 
         logger.info( 'Parsing WBC All-in-One schedule' )
 
@@ -1057,6 +1049,7 @@ class WbcAllInOne( object ):
             self.load_row( row )
 
     def load_row( self, row ):
+        """Parse an individual table row to find times and rooms for an event"""
 
         events = []
 
@@ -1120,6 +1113,8 @@ class WbcAllInOne( object ):
         self.events[code] = events
 
     def verify_event_calendars( self ):
+        """Compare the collections of events from both the calendars and the schedule"""
+
         logger.info( 'Verifying event calendars against All-in-One schedule' )
 
         allinone_key_set = set( self.events.keys() )
@@ -1140,9 +1135,11 @@ class WbcAllInOne( object ):
             self.verify_one_event_calendar( code )
 
     def verify_one_event_calendar( self, code ):
-        calendar = self.schedule.calendars[ code ]
-        tab_events = self.events[ code ]
-        cal_events = calendar.subcomponents
+        """Compare the generated calendar for an event against the all-in-one schedule 
+        for that event.  If there are differences, log them."""
+
+        ai1_events = self.events[ code ]
+        cal_events = self.schedule.calendars[code].subcomponents
 
         # Remove calendar events that aren't on the schedule table
         cal_events = [ e for e in cal_events if not e['summary'].endswith( 'Jr' ) ]
@@ -1150,21 +1147,27 @@ class WbcAllInOne( object ):
         cal_events = [ e for e in cal_events if not e['summary'].endswith( 'Draft' ) ]
         cal_events = [ e for e in cal_events if e['dtstart'].dt.minute == 0 ]
 
-        tab_comparison = [ self.ev_date_loc( x ) for x in tab_events ]
+        # Create lists of the comparable information from both sets of events
+        ai1_comparison = [ self.ev_date_loc( x ) for x in ai1_events ]
         cal_comparison = [ self.sc_date_loc( x ) for x in cal_events ]
-        tab_extra = set( tab_comparison ) - set( cal_comparison )
-        cal_extra = set( cal_comparison ) - set( tab_comparison )
 
-        if len( tab_extra ) or len( cal_extra ):
+        # Compare the lists looking for discrepancies
+        ai1_extra = set( ai1_comparison ) - set( cal_comparison )
+        cal_extra = set( cal_comparison ) - set( ai1_comparison )
+
+        # If there are any discrepancies, log them
+        if len( ai1_extra ) or len( cal_extra ):
             logger.error( '%s: All-in-One____________________ Calendar______________________ __Length Name________________', code )
             cal_other = [ '%8s %s' % ( x['duration'].dt, x['summary'] ) for x in cal_events ]
-            for tab, cal, other in izip_longest( tab_comparison, cal_comparison, cal_other, fillvalue='' ):
+            for tab, cal, other in izip_longest( ai1_comparison, cal_comparison, cal_other, fillvalue='' ):
                 mark = ' ' if tab == cal else '*'
                 logger.error( '%4s %-30s %-30s %s', mark, tab, cal, other )
             logger.error( '' )
 
     @staticmethod
     def sc_date_loc( sc ):
+        """Generate a summary of a calendar event for comparison purposes"""
+
         date = sc['dtstart'].dt
         location = sc['location']
         location = 'Terrace' if location.startswith( 'Terrace' ) else location
@@ -1172,6 +1175,8 @@ class WbcAllInOne( object ):
 
     @staticmethod
     def ev_date_loc( ev ):
+        """Generate a summary of an all-in-one event for comparison purposes"""
+
         date = ev.time
         location = ev.location
         location = 'Terrace' if location == 'Pt' else location
