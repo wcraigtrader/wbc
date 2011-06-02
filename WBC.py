@@ -51,8 +51,8 @@ def parse_url( url ):
         if ( len( data ) ):
             page = BeautifulSoup( data )
     except Exception as e:
-        print 'Loading %s' % url
-        print e
+        logger.error( 'Failed while loading (%s)', url )
+        logger.exception( e )
 
     return page
 

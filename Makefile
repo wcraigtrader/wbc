@@ -6,7 +6,7 @@ YEAR=2011
 
 all:	build
 
-.PHONY:	build clean compare fetch prerequisites push
+.PHONY:	build clean compare fetch prerequisites push backup
 
 build:	clean
 	python WBC.py -i $(SRCS)$(YEAR).xls
@@ -17,11 +17,15 @@ compare:
 
 push:
 	rsync -v -rltD --delete test/ trader.name:/data/web/trader/wbc/$(YEAR)/
-	# rsync -v -rltD --delete test/ live/$(YEAR)/
 
 clean:
 	rm -rf test
 	mkdir test
+
+backup:
+	rm -rf save
+	mkdir save
+	rsync -av test/ save/
 
 test:	build compare
 
