@@ -48,6 +48,10 @@ logger = logging.getLogger( 'WBC' )
 #----- Utility methods -------------------------------------------------------
 
 def parse_url( url ):
+    """
+    Utility function to load an HTML page from a URL, and parse it with BeautifulSoup.
+    """
+
     page = None
     try:
         f = urllib2.urlopen( url )
@@ -63,6 +67,10 @@ def parse_url( url ):
 #----- WBC Event -------------------------------------------------------------
 
 class WbcEvent( object ):
+    """
+    A WbcEvent encapsulates information about a single schedule line from the 
+    WBC schedule.
+    """
 
     def __init__( self, schedule, line, *args ):
 
@@ -113,6 +121,8 @@ class WbcEvent( object ):
         return repr( self.__dict__ )
 
     def checkrounds( self ):
+        """Check the current state of the event name to see if it describes a Heat or Round number"""
+
         match = re.search( r'([HR]?)(\d+)/(\d+)$', self.name )
         if match:
             ( t, n, m ) = match.groups()
@@ -127,6 +137,11 @@ class WbcEvent( object ):
                 self.name = self.name[:-len( text )].strip()
 
     def checktypes( self, types ):
+        """
+        Check the current state of the event name and strip off (and flag) any of the listed 
+        event type codes
+        """
+
         for event_type in types:
             if self.name.endswith( event_type ):
                 self.type = event_type + ' ' + self.type
@@ -139,6 +154,11 @@ class WbcEvent( object ):
         self.type = self.type.strip()
 
     def checkduration( self ):
+        """
+        Given the current event state, set the continuous event flag, 
+        and calculate the correct event length.
+        """
+
         if self.__dict__.has_key( 'continuous' ):
             self.continuous = ( self.continuous in ( 'C', 'Y' ) )
         else:
@@ -152,6 +172,11 @@ class WbcEvent( object ):
             self.length = timedelta( minutes=60 * float( self.duration ) )
 
     def checkcodes( self ):
+        """
+        Check the current state of the event name and identify the actual event that matches
+        the abbreviated name that's present.
+        """
+
         self.code = None
 
         # Check for tournament codes
@@ -171,13 +196,27 @@ class WbcEvent( object ):
                     self.code = o['code']
                     return
 
+    def checktimes( self ):
+        """Stub"""
+
+        raise NotImplementedError()
+
+    def readrow( self, *args ):
+        """Stub"""
+
+        raise NotImplementedError()
+
 #----- WBC Event (read from CSV spreadsheet) ---------------------------------
 
 class WbcCsvEvent( WbcEvent ):
+    """This subclass of WbcEvent is used to parse CSV-formatted schedule data"""
+
     def __init__( self, *args ):
         WbcEvent.__init__( self, *args )
 
     def readrow( self, *args ):
+        """Custom implementation of readrow to handle CSV-formatted rows"""
+
         row = args[0]
 
         for ( key, val ) in row.items():
@@ -186,6 +225,8 @@ class WbcCsvEvent( WbcEvent ):
         self.name = self.event.strip()
 
     def checktimes( self ):
+        """Custom implementation of checktimes to handle CSV-formatted date/times"""
+
         try:
             d = datetime.strptime( self.date, "%m/%d/%Y" )
         except:
@@ -207,11 +248,14 @@ class WbcCsvEvent( WbcEvent ):
 #----- WBC Event (read from Excel spreadsheet) -------------------------------
 
 class WbcXlsEvent( WbcEvent ):
+    """This subclass of WbcEvent is used to parse XLS-formatted schedule data"""
 
     def __init__( self, *args ):
         WbcEvent.__init__( self, *args )
 
     def readrow( self, *args ):
+        """Custom implementation of readrow to handle XLS-formatted rows"""
+
         labels = args[0]
         row = args[1]
         datemode = args[2]
@@ -242,6 +286,8 @@ class WbcXlsEvent( WbcEvent ):
         self.name = self.event.strip()
 
     def checktimes( self ):
+        """Custom implementation of checktimes to handle XLS-formatted date/times"""
+
         d = self.date
 
         if self.time.__class__ is time:
@@ -887,6 +933,7 @@ class WbcSchedule( object ):
 
     @classmethod
     def render_calendar_table( cls, parser, id_name, label, calendar_map, comparison=None ):
+        """Create the HTML fragment for the table of tournament calendars."""
 
         keys = calendar_map.keys()
         keys.sort( comparison )
@@ -907,6 +954,7 @@ class WbcSchedule( object ):
 
     @classmethod
     def render_calendar_table_entry( cls, parser, key, label ):
+        """Create the HTML fragment for one cell in the tournament calendar table."""
         td = Tag( parser, 'td' )
         if key:
             span = Tag( parser, 'span' )
@@ -924,6 +972,11 @@ class WbcSchedule( object ):
 
     @staticmethod
     def split_list( original, width ):
+        """
+        A generator that, given a list of indeterminate length, will split the list into 
+        roughly equal columns, and then return the resulting list one row at a time. 
+        """
+
         max_length = len( original )
         length = ( max_length + width - 1 ) / width
         for i in range( length ):
@@ -935,6 +988,7 @@ class WbcSchedule( object ):
 
     @classmethod
     def render_calendar_list( cls, parser, id_name, label, calendar_map, comparison=None ):
+        """Create the HTML fragment for an unordered list of calendars."""
 
         keys = calendar_map.keys()
         keys.sort( comparison )
@@ -950,6 +1004,7 @@ class WbcSchedule( object ):
 
     @classmethod
     def render_calendar_list_item( cls, parser, list_tag, key, label ):
+        """Create the HTML fragment for a single calendar in a list"""
 
         li = Tag( parser, 'li' )
         li.insert( 0, Tag( parser, 'a' ) )
@@ -1036,6 +1091,7 @@ class WbcAllInOne( object ):
     events = {}
 
     class Event( object ):
+        """Simple data object to collect information about an event occuring at a specific time."""
 
         def __init__( self ):
             self.code = None
@@ -1090,7 +1146,7 @@ class WbcAllInOne( object ):
                 for key, val in f.attrs:
                     if key == 'color':
                         # Fonts with color attributes represent start/type data for a single event
-                        e = self.Event()
+                        e = WbcAllInOne.Event()
                         e.code = code
                         e.name = name
                         hour = int( f.text.strip() )
