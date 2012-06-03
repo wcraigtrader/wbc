@@ -1,23 +1,26 @@
 # Calendar makefile
 
-# SRCS=WBCScheduleSpreadsheet
-SRCS=schedule
+SITE=http://boardgamers.org/downloads/
+SCHEDULE=schedule
 YEAR=2012
 EXT=.xls
+
+SPREADSHEET=$(SCHEDULE)$(YEAR)$(EXT)
+OLD_SPREADSHEET=$(SCHEDULE)$(YEAR).old
+NEW_SPREADSHEET=$(SCHEDULE)$(YEAR).new
+
+BUILD=build
 
 all:	build
 
 .PHONY:	build clean compare fetch prerequisites push backup
 
 build:	clean
-	python WBC.py -i $(SRCS)$(YEAR)$(EXT)
-	tar cf - Makefile WBC.py wbc-*-codes.csv wbc-template.html lgpl.txt | gzip > test/wbc-calendars.tar.gz
+	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD)
+	tar cf - Makefile WBC.py wbc-*-codes.csv wbc-template.html lgpl.txt | gzip > $(BUILD)/wbc-calendars.tar.gz
 
-compare:
-	@$(SHELL) compare-live-test
-
-push:
-	rsync -v -rlD --no-times --delete test/ trader.name:/data/web/trader/wbc/$(YEAR)/
+push:	build
+	rsync -v -rlD --no-times --delete $(BUILD)/ trader.name:/data/web/trader/wbc/$(YEAR)/
 
 clean:
 	rm -rf test
@@ -28,16 +31,15 @@ backup:
 	mkdir save
 	rsync -av test/ save/
 
-test:	build compare
-
 fetch:
-	wget -nv -O $(SRCS)$(YEAR).new http://boardgamers.org/downloads/$(SRCS)$(YEAR)$(EXT)
-	@if cmp -s $(SRCS)$(YEAR).new $(SRCS)$(YEAR)$(EXT) ; then \
-	rm $(SRCS)$(YEAR).new ; \
-	echo "No changes to $(SRCS)$(YEAR)$(EXT)" ; \
+	wget -nv -O $(NEW_SPREADSHEET) $(SITE)$(SPREADSHEET)
+	@if cmp -s $(NEW_SPREADSHEET) $(SPREADSHEET) ; then \
+	  rm $(NEW_SPREADSHEET) ; \
+	  echo "No changes to $(SPREADSHEET)" ; \
 	else \
-	mv $(SRCS)$(YEAR)$(EXT) $(SRCS)$(YEAR).old ; mv $(SRCS)$(YEAR).new $(SRCS)$(YEAR)$(EXT) ; \
-	echo "$(SRCS)$(YEAR)$(EXT) updated" ; \
+	  [ -f $(SPREADSHEET) ] && mv $(SPREADSHEET) $(OLD_SPREADSHEET) ; \
+	  mv $(NEW_SPREADSHEET) $(SPREADSHEET) ; \
+	  echo "$(SPREADSHEET) updated" ; \
 	fi
 
 prerequisites:

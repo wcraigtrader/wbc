@@ -398,7 +398,7 @@ class WbcSchedule( object ):
         parser.add_option( "-y", "--year", dest="year", metavar="YEAR", default=self.processed.year, help="Year to process" )
         parser.add_option( "-t", "--type", dest="type", metavar="TYPE", default="xls", help="Type of file to process (csv,xls)" )
         parser.add_option( "-i", "--input", dest="input", metavar="FILE", default=None, help="Schedule spreadsheet to process" )
-        parser.add_option( "-o", "--output", dest="output", metavar="DIR", default="test", help="Directory for results" )
+        parser.add_option( "-o", "--output", dest="output", metavar="DIR", default="build", help="Directory for results" )
         parser.add_option( "-v", "--verbose", dest="verbose", action="store_true", default=False )
         self.options, unused_args = parser.parse_args()
 
