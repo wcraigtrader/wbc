@@ -25,7 +25,8 @@
 # sudo pip install icalendar
 # sudo pip install xlrd
 
-#pylint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0612,W0621,W0702,W0703
+#xxlint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0612,W0621,W0702,W0703
+#pylint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0702
 
 from BeautifulSoup import BeautifulSoup, Tag, NavigableString
 from cgi import escape
@@ -43,7 +44,13 @@ import urllib2
 import xlrd
 
 logging.basicConfig( level=logging.WARN )
-logger = logging.getLogger( 'WBC' )
+LOGGER = logging.getLogger( 'WBC' )
+DEBUGGING = True
+
+#----- Time Constants --------------------------------------------------------
+
+TZ = pytz.timezone( 'America/New_York' ) # Tournament timezone
+UTC = pytz.timezone( 'UTC' )             # UTC timezone (for iCal)
 
 #----- Utility methods -------------------------------------------------------
 
@@ -58,9 +65,9 @@ def parse_url( url ):
         data = f.read()
         if ( len( data ) ):
             page = BeautifulSoup( data )
-    except Exception as e:
-        logger.error( 'Failed while loading (%s)', url )
-        logger.exception( e )
+    except Exception as e:  # pylint: disable=W0703
+        LOGGER.error( 'Failed while loading (%s)', url )
+        LOGGER.exception( e )
 
     return page
 
@@ -90,12 +97,14 @@ class WbcEvent( object ):
         self.rounds = 0
         self.freeformat = False
         self.grognard = False
+        self.junior = False
 
         # read the data row using the subclass
         self.readrow( *args )
 
-#        if self.name.find( 'Awards' ) >= 0:
-#            pass
+        # This test is for debugging purposes; string search on the spreadsheet event name
+        if DEBUGGING and self.name.find( 'Ingenius' ) >= 0:
+            pass
 
         # parse the data to generate useful fields
         self.checkrounds()
@@ -150,6 +159,8 @@ class WbcEvent( object ):
                     self.freeformat = True
                 elif event_type == 'PC':
                     self.grognard = True
+                elif event_type in self.schedule.JUNIOR:
+                    self.junior = True
 
         self.type = self.type.strip()
 
@@ -322,8 +333,6 @@ class WbcSchedule( object ):
     iCalendar calendars for each event (with vEvents for each time slot).
     """
 
-    timezone = pytz.timezone( 'US/Eastern' )    # Tournament timezone
-
     # Data file names
     EVENTCODES = "wbc-event-codes.csv"
     OTHERCODES = "wbc-other-codes.csv"
@@ -336,7 +345,7 @@ class WbcSchedule( object ):
     MENTOR = [ 'Mentoring' ]
     MULTIPLE = ['QF/SF/F', 'QF/SF', 'SF/F' ]
     SINGLE = [ 'QF', 'SF', 'F' ]
-    STYLE = [ 'After Action', 'Awards', 'Demo', 'Mulligan' ] + MULTIPLE + SINGLE
+    STYLE = [ 'After Action Debriefing', 'After Action', 'Awards', 'Demo', 'Mulligan' ] + MULTIPLE + SINGLE
 
     TYPES = [ 'PC' ] + FLAVOR + JUNIOR + TEEN + MENTOR + STYLE
 
@@ -348,6 +357,7 @@ class WbcSchedule( object ):
     names = {}          # Code -> Name map for events
 
     durations = {}      # Special durations for events that have them
+    grognards = {}      # Special durations for grognard events that have them
     playlate = {}       # Flag for events that may run past midnight
 
     rounds = {}         # Number of rounds for events that have rounds
@@ -368,7 +378,7 @@ class WbcSchedule( object ):
         """
         Initialize a schedule
         """
-        self.processed = datetime.now( self.timezone )
+        self.processed = datetime.now( TZ )
 
         self.process_options()
         self.load_tourney_codes()
@@ -382,7 +392,7 @@ class WbcSchedule( object ):
         Parse command line options
         """
 
-        logger.debug( 'Parsing commandline options' )
+        LOGGER.debug( 'Parsing commandline options' )
 
         parser = OptionParser()
         parser.add_option( "-y", "--year", dest="year", metavar="YEAR", default=self.processed.year, help="Year to process" )
@@ -403,7 +413,7 @@ class WbcSchedule( object ):
         Load all of the tourney codes (and alternate names) from their data file.
         """
 
-        logger.debug( 'Loading tourney event codes' )
+        LOGGER.debug( 'Loading tourney event codes' )
 
         codefile = csv.DictReader( open( self.EVENTCODES ), delimiter=';' )
         for row in codefile:
@@ -415,6 +425,9 @@ class WbcSchedule( object ):
 
             if row['Duration']:
                 self.durations[c] = int( row['Duration'] )
+
+            if row['Grognard']:
+                self.grognards[c] = int( row['Grognard'] )
 
             if row['PlayLate']:
                 self.playlate[c] = row['PlayLate'].strip().lower()
@@ -429,7 +442,7 @@ class WbcSchedule( object ):
         Load all of the non-tourney codes from their data file.
         """
 
-        logger.debug( 'Loading non-tourney event codes' )
+        LOGGER.debug( 'Loading non-tourney event codes' )
 
         codefile = csv.DictReader( open( self.OTHERCODES ), delimiter=';' )
         for row in codefile:
@@ -448,7 +461,7 @@ class WbcSchedule( object ):
         Process all of the events in the spreadsheet
         """
 
-        logger.info( 'Scanning schedule spreadsheet' )
+        LOGGER.info( 'Scanning schedule spreadsheet' )
 
         filename = self.options.input
         if self.options.type == 'csv':
@@ -465,7 +478,7 @@ class WbcSchedule( object ):
         Read a CSV-formatted file and generate WBC events for each row
         """
 
-        logger.debug( 'Reading CSV spreadsheet from %s', filename )
+        LOGGER.debug( 'Reading CSV spreadsheet from %s', filename )
 
         with open( filename ) as f:
             eventfile = csv.DictReader( f , delimiter=';' )
@@ -480,7 +493,7 @@ class WbcSchedule( object ):
         Read an Excel spreadsheet and generate WBC events for each row.
         """
 
-        logger.debug( 'Reading Excel spreadsheet from %s', filename )
+        LOGGER.debug( 'Reading Excel spreadsheet from %s', filename )
 
         book = xlrd.open_workbook( filename )
         sheet = book.sheet_by_index( 0 )
@@ -522,7 +535,7 @@ class WbcSchedule( object ):
         creating calendars for each entry as needed.
         """
 
-        logger.info( 'Creating calendars' )
+        LOGGER.info( 'Creating calendars' )
 
         for event_list in self.events.values():
             event_list.sort( lambda x, y: cmp( x.datetime, y.datetime ) )
@@ -571,26 +584,33 @@ class WbcSchedule( object ):
         """
         For a spreadsheet entry, generate calendar events as follows:
         
-        If the entry has rounds, add calendar events for each round.
-        If the entry is marked as continuous, and the code is WAW, 
-           it gets special handling.
-        If the entry is marked as continuous, and it's marked 'HMSE', 
+        If the event is WAW, 
+            treat it like an all-week free-format event.
+        If the event is free-format, and a grognard,
+            it's an all-week event, but use the grognard duration from the event codes.
+        If the event is free-format, and a Swiss Elimination, and it has rounds,
+            it's an all-week event, but use the duration from the event codes.
+        If the event has rounds, 
+            add calendar events for each round.
+        If the event is marked as continuous, and it's marked 'HMSE', 
            there's no clue as to how many actual heats there are, so just add one event.
-        If the entry is marked as continuous, add as many events as there are types coded.
+        If the event is marked as continuous, 
+            add as many events as there are types coded.
         Otherwise, 
-           add a single event for the entry.
+           add a single event for the event.
         """
 
         calendar = self.get_or_create_event_calendar( event.code )
 
-        if event.code in ( 'CNS', 'ELC', 'LID', 'SLS' ):
+        # This test is for debugging purposes, and is only good for an event that was sucessfully coded
+        if DEBUGGING and event.code in ( 'SSB', ):
             pass
 
         if event.code == 'WAW':
             self.process_all_week_event( calendar, event )
         elif event.freeformat and event.grognard:
             self.process_freeformat_grognard_event( calendar, event )
-        elif event.freeformat and event.format == 'SwEl':
+        elif event.freeformat and event.format == 'SwEl' and event.rounds:
             self.process_freeformat_swel_event( calendar, event )
         elif event.rounds:
             self.process_event_with_rounds( calendar, event )
@@ -702,8 +722,8 @@ class WbcSchedule( object ):
         In this case, the duration is 10 + 15 + 15 + 9 = 49 hours. 
         """
 
-        duration = 49
-        label = "%s R%s/%s" % ( entry.name, 1, entry.rounds )
+        duration = self.grognards[entry.code] if self.grognards.has_key( entry.code ) else 49
+        label = "%s PC R%s/%s" % ( entry.name, 1, entry.rounds )
         self.process_all_week_event( calendar, entry, duration, label )
 
     def process_all_week_event( self, calendar, entry, length=None, label=None ):
@@ -716,7 +736,7 @@ class WbcSchedule( object ):
         label = label if label else entry.name
 
         while ( remaining.days or remaining.seconds ):
-            midnight = midnight = start.date() + timedelta( days=1 )
+            midnight = start.date() + timedelta( days=1 )
             duration = datetime( midnight.year, midnight.month, midnight.day ) - start
             if duration > remaining:
                 duration = remaining
@@ -762,11 +782,15 @@ class WbcSchedule( object ):
         if self.calendars.has_key( code ):
             return self.calendars[ code ]
 
+        description = "%s %s: %s" % ( self.prodid, code, self.names[code] )
+        url = 'http://boardgamers.org/yearbkex/%spge.htm' % code.lower()
+
         calendar = Calendar()
         calendar.add( 'VERSION', '2.0' )
         calendar.add( 'PRODID', '-//%s %s//ct7//' % ( self.prodid, code ) )
         calendar.add( 'SUMMARY', self.names[ code ] )
-        calendar.add( 'DESCRIPTION', "%s %s: %s" % ( self.prodid, code, self.names[code] ) )
+        calendar.add( 'DESCRIPTION', description )
+        calendar.add( 'URL', url )
 
         self.calendars[ code ] = calendar
 
@@ -781,11 +805,13 @@ class WbcSchedule( object ):
         if self.locations.has_key( location ):
             return self.locations[ location ]
 
+        description = "%s: Events in %s" % ( self.prodid, location )
+
         calendar = Calendar()
         calendar.add( 'VERSION', '2.0' )
         calendar.add( 'PRODID', '-//%s %s//ct7//' % ( self.prodid, location ) )
         calendar.add( 'SUMMARY', 'Events in ' + location )
-        calendar.add( 'DESCRIPTION', "%s: Events in %s" % ( self.prodid, location ) )
+        calendar.add( 'DESCRIPTION', description )
 
         self.locations[ location ] = calendar
 
@@ -802,11 +828,13 @@ class WbcSchedule( object ):
         if self.dailies.has_key( key ):
             return self.dailies[ key ]
 
+        description = '%s: Events on %s' % ( self.prodid, name )
+
         calendar = Calendar()
         calendar.add( 'VERSION', '2.0' )
         calendar.add( 'PRODID', '-//%s %s//ct7//' % ( self.prodid, key ) )
         calendar.add( 'SUMMARY', 'Events on ' + name )
-        calendar.add( 'DESCRIPTION', '%s: Events on %s' % ( self.prodid, name ) )
+        calendar.add( 'DESCRIPTION', description )
 
         self.dailies[ key ] = calendar
 
@@ -820,12 +848,15 @@ class WbcSchedule( object ):
         start = start if start else entry.datetime
         duration = duration if duration else entry.length
 
+        localized_start = TZ.localize( start )
+        utc_start = localized_start.astimezone( UTC )
+
         e = Event()
         e.add( 'SUMMARY', name )
-        e.add( 'DTSTART', self.timezone.localize( start ) )
+        e.add( 'DTSTART', utc_start )
         e.add( 'DURATION', duration )
         e.add( 'LOCATION', entry.location )
-        e.add( 'ORGANIZER', entry.gm )
+        e.add( 'CONTACT', entry.gm )
 
         if replace:
             self.add_or_replace_event( calendar, e, altname )
@@ -850,7 +881,7 @@ class WbcSchedule( object ):
 
         self.unmatched.sort( cmp=lambda x, y: cmp( x.name, y.name ) )
         for event in self.unmatched:
-            logger.error( 'Did not process Row %3d [%s] %s', event.line, event.name, event )
+            LOGGER.error( 'Did not process Row %3d [%s] %s', event.line, event.name, event )
 
     def write_calendar_file( self, calendar, name ):
         """
@@ -864,7 +895,7 @@ class WbcSchedule( object ):
         """
         Write all of the calendar files.
         """
-        logger.info( "Saving calendars..." )
+        LOGGER.info( "Saving calendars..." )
 
         # For all of the event calendars
         for code, calendar in self.calendars.items():
@@ -890,7 +921,7 @@ class WbcSchedule( object ):
         all of the created calendars.
         """
 
-        logger.info( 'Writing index page...' )
+        LOGGER.info( 'Writing index page...' )
 
         with open( self.TEMPLATE, "r" ) as f:
             template = f.read()
@@ -938,7 +969,7 @@ class WbcSchedule( object ):
         keys = calendar_map.keys()
         keys.sort( comparison )
 
-        div = parser.find( 'div', { 'id_name' : id_name } )
+        div = parser.find( 'div', { 'id' : id_name } )
         div.insert( 0, Tag( parser, 'h2' ) )
         div.h2.insert( 0, NavigableString( label ) )
         div.insert( 1, Tag( parser, 'table' ) )
@@ -993,7 +1024,7 @@ class WbcSchedule( object ):
         keys = calendar_map.keys()
         keys.sort( comparison )
 
-        div = parser.find( 'div', { 'id_name' : id_name } )
+        div = parser.find( 'div', { 'id' : id_name } )
         div.insert( 0, Tag( parser, 'h2' ) )
         div.h2.insert( 0, NavigableString( label ) )
         div.insert( 1, Tag( parser, 'ul' ) )
@@ -1022,13 +1053,11 @@ class WbcSchedule( object ):
         3) The iCalendar library doesn't sort the events in a given calendar by date/time.
         """
         c = calendar
-        c.subcomponents.sort( cmp=cls.compare_icalendar_events )
+#        c.subcomponents.sort( cmp=cls.compare_icalendar_events )
 
-        s = c.as_string()
-        s = s.replace( "\r\nVERSION:2.0", "" )
-        s = s.replace( "BEGIN:VCALENDAR", "BEGIN:VCALENDAR\r\nVERSION:2.0" )
-        s = s.replace( ";VALUE=DATE:", ":" )
-        return s
+        z = c.to_ical()
+        z = z.replace( ";TZID=UTC;VALUE=DATE-TIME:", ":" )
+        return z
 
     @staticmethod
     def compare_icalendar_events( x, y ):
@@ -1078,15 +1107,45 @@ class WbcAllInOne( object ):
     generated by the WbcSchedule class.  
     
     The comparison is really just a sanity check, because there is less 
-    information present in the All-in-One Schedule that is needed to build a 
+    information present in the All-in-One Schedule than is needed to build a 
     correct calendar entry.  On the other hand, it's easier to parse than the
     YearBook pages for each event.
+
+    A typical row on the All-in-One schedule might look something like this:
+        
+        <tr><td>
+        <i><FONT SIZE=+2>CAR</FONT></i>
+        </td><td align=right valign=top bgcolor="#009900">
+        <FONT COLOR="#FFFFFF"><i>* Carcassonne</i>
+        </FONT>
+        </td><td>
+        </td><td>
+        &nbsp</td><td>
+        &nbsp</td><td>
+        &nbsp</td><td>
+        &nbsp</td><td>
+        &nbsp</td><td>
+        &nbsp</td><td>
+        &nbsp</td><td>
+        Sa<FONT COLOR=magenta>17</FONT>,<FONT COLOR=red>18</FONT>,<FONT COLOR=red>19</FONT>,<FONT COLOR=#07BED2>20</FONT>,<FONT COLOR=blue>21</FONT>,<FONT COLOR=#AAAA00>22</FONT><br>
+        <FONT SIZE=-1>Ballroom B</FONT>
+        </td><td>
+        &nbsp
+        
+    This is, frankly, horrible HTML.  But at least it's consistent, year-to-year, 
+    and BeautifulSoup can parse it. 
     """
 
     SITE_URL = 'http://boardgamers.org/wbc/allin1.htm'
 
     TERRACE = 'Pt'
-    colormap = { 'green':'Demo', 'red':'Round', 'blue': 'SF', '#AAAA00': 'F' }
+    colormap = {
+        'green': 'Demo',
+        '#07BED2': 'Mulligan',
+        'red': 'Round',
+        'blue': 'SF',
+        '#AAAA00': 'F',
+    }
 
     events = {}
 
@@ -1115,7 +1174,7 @@ class WbcAllInOne( object ):
     def load_table( self ):
         """Parse the All-in-One schedule table (HTML)"""
 
-        logger.info( 'Parsing WBC All-in-One schedule' )
+        LOGGER.info( 'Parsing WBC All-in-One schedule' )
 
         self.page = parse_url( self.SITE_URL )
         if not self.page:
@@ -1151,10 +1210,14 @@ class WbcAllInOne( object ):
                         e.name = name
                         hour = int( f.text.strip() )
                         day = current_date.day
+                        month = current_date.month
                         if hour >= 24:
                             hour = hour - 24
                             day = day + 1
-                        e.time = self.schedule.timezone.localize( current_date.replace( day=day, hour=hour ) )
+                        if day >= 32: # This only works because WBC is always in July/August, each of which has 31 days.
+                            day = day - 31
+                            month = month + 1
+                        e.time = TZ.localize( current_date.replace( month=month, day=day, hour=hour ) )
                         e.type = self.colormap.get( val, None )
                         current[hour] = e
 
@@ -1193,7 +1256,7 @@ class WbcAllInOne( object ):
     def verify_event_calendars( self ):
         """Compare the collections of events from both the calendars and the schedule"""
 
-        logger.info( 'Verifying event calendars against All-in-One schedule' )
+        LOGGER.info( 'Verifying event calendars against All-in-One schedule' )
 
         allinone_key_set = set( self.events.keys() )
         schedule_key_set = set( self.schedule.current_tourneys )
@@ -1202,9 +1265,9 @@ class WbcAllInOne( object ):
         schedule_extras = schedule_key_set - allinone_key_set
 
         if len( allinone_extras ):
-            logger.error( 'Extra events present in All-in-One: %s', allinone_extras )
+            LOGGER.error( 'Extra events present in All-in-One: %s', allinone_extras )
         if len( schedule_extras ):
-            logger.error( 'Extra events present in Schedule: %s', schedule_extras )
+            LOGGER.error( 'Extra events present in Schedule: %s', schedule_extras )
 
         codes = list( allinone_key_set & schedule_key_set )
         codes.sort()
@@ -1219,9 +1282,9 @@ class WbcAllInOne( object ):
         ai1_events = self.events[ code ]
         cal_events = self.schedule.calendars[code].subcomponents
 
-        # Remove calendar events that aren't on the schedule table
-        cal_events = [ e for e in cal_events if not e['summary'].endswith( 'Jr' ) ]
-        cal_events = [ e for e in cal_events if not e['summary'].endswith( 'After Action' ) ]
+        # Remove calendar events that aren't on the all-in-one schedule table
+        cal_events = [ e for e in cal_events if not e['summary'].find( ' Jr' ) >= 0 ]
+#       cal_events = [ e for e in cal_events if not e['summary'].endswith( 'After Action' ) ]
         cal_events = [ e for e in cal_events if not e['summary'].endswith( 'Draft' ) ]
         cal_events = [ e for e in cal_events if e['dtstart'].dt.minute == 0 ]
 
@@ -1235,30 +1298,30 @@ class WbcAllInOne( object ):
 
         # If there are any discrepancies, log them
         if len( ai1_extra ) or len( cal_extra ):
-            logger.error( '%s: All-in-One____________________ Calendar______________________ __Length Name________________', code )
+            LOGGER.error( '%s: All-in-One________________________ Calendar__________________________ __Length Name________________', code )
             cal_other = [ '%8s %s' % ( x['duration'].dt, x['summary'] ) for x in cal_events ]
             for tab, cal, other in izip_longest( ai1_comparison, cal_comparison, cal_other, fillvalue='' ):
                 mark = ' ' if tab == cal else '*'
-                logger.error( '%4s %-30s %-30s %s', mark, tab, cal, other )
-            logger.error( '' )
-
-    @staticmethod
-    def sc_date_loc( sc ):
-        """Generate a summary of a calendar event for comparison purposes"""
-
-        start_time = sc['dtstart'].dt
-        location = sc['location']
-        location = 'Terrace' if location.startswith( 'Terrace' ) else location
-        return '%s : %s' % ( start_time.strftime( '%m-%d %H:%M:%S' ), location )
+                LOGGER.error( '%4s %-34s %-34s %s', mark, tab, cal, other )
+            LOGGER.error( '' )
 
     @staticmethod
     def ev_date_loc( ev ):
         """Generate a summary of an all-in-one event for comparison purposes"""
 
-        start_time = ev.time
+        start_time = ev.time.astimezone( TZ )
         location = ev.location
         location = 'Terrace' if location == 'Pt' else location
-        return '%s : %s' % ( start_time.strftime( '%m-%d %H:%M:%S' ), location )
+        return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M:%S' ), location )
+
+    @staticmethod
+    def sc_date_loc( sc ):
+        """Generate a summary of a calendar event for comparison purposes"""
+
+        start_time = sc['dtstart'].dt.astimezone( TZ )
+        location = sc['location']
+        location = 'Terrace' if location.startswith( 'Terrace' ) else location
+        return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M:%S' ), location )
 
 #----- Real work happens here ------------------------------------------------
 
@@ -1285,4 +1348,4 @@ if __name__ == '__main__':
     # Compare the event calendars with the WBC All-in-One schedule
     table.verify_event_calendars()
 
-    logger.info( "Done." )
+    LOGGER.info( "Done." )

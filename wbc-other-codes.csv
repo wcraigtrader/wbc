@@ -1,28 +1,33 @@
-"Code";"Description";"Name";"Format"
-"gaming";"Open Gaming";"Open Gaming";
-"gaming";"Open Gaming";"Open Gaming & Library Open";
-"gaming";"Open Gaming";"Library Closed-ALL GAMES DUE";
-"junior";"Junior Events";;"Junior"
-"meeting";"Meetings";;"Meeting"
-"meeting";"Meetings";;"Meeeting"
-"panels";"Panels";;"Panel"
-"registration";"Registration";"Registration";
-"seminar";"Seminars";;"Seminar"
-"cep";"Civilization Expansion Project";"Civilization Expansion Project";
-"mmw";"Mr. Madison's War";"Mr. Madison's War";"Prototype"
-"auction";"Auction Store";;"Auction"
-"auction";"Auction Store";;"Sales"
-"auction";"Auction Store";;"Register"
-"sampler";"Sampler";"Sampler";"Sampler"
-"sampler";"Sampler Showcase";"Sampler Showcase";"Sampler"
-"memoir";"Memoir";"Memoir; Tigers Campaign";
-"memoir";"Memoir";"Memoir; Overlord Campaign";
-"memoir";"Memoir";"Memoir; Stalingrad Campaign";
-"memoir";"Memoir";"Memoir; El Alamein Campaign";
-"memoir";"Memoir";"Memoir; Russo-Finnish War";
-"memoir";"Memoir";"Memoir: Bastogne";
-"memoir";"Memoir";"Memoir: Factory Fight";
-"memoir";"Memoir";"Memoir: Firefight in Nef";
-"memoir";"Memoir";"Memoir: Iwo Jima";
-"memoir";"Memoir";"Memoir: Sword Beach";
-"bcbs";"Black Cross, Blue Sky";"Black Cross, Blue Sky";
+Code;Description;Name;Format
+gaming;Open Gaming;Open Gaming;
+gaming;Open Gaming;Open Gaming & Library Open;
+gaming;Open Gaming;Library Closed-ALL GAMES DUE;
+gaming;Open Gaming;Library Closed;
+junior;Junior Events;;Junior
+meeting;Meetings;;Meeting
+meeting;Meetings;;Meeeting
+panels;Panels;;Panel
+registration;Registration;Registration;
+seminar;Seminars;;Seminar
+cep;Civilization Expansion Project;Civilization Expansion Project;
+mmw;Mr. Madison's War;Mr. Madison's War;Prototype
+auction;Auction Store;;Auction
+auction;Auction Store;;Sales
+auction;Auction Store;;Register
+sampler;Sampler;Sampler;Sampler
+sampler;Sampler Showcase;Sampler Showcase;Sampler
+memoir;Memoir;"Memoir; Tigers Campaign";
+memoir;Memoir;"Memoir; Overlord Campaign";
+memoir;Memoir;"Memoir; Stalingrad Campaign";
+memoir;Memoir;"Memoir; El Alamein Campaign";
+memoir;Memoir;"Memoir; Russo-Finnish War";
+memoir;Memoir;Memoir: Bastogne;
+memoir;Memoir;Memoir: Factory Fight;
+memoir;Memoir;Memoir: Firefight in Nef;
+memoir;Memoir;Memoir: Iwo Jima;
+memoir;Memoir;Memoir: Sword Beach;
+memoir;Memoir;Memoir: Prokhorovka;
+memoir;Memoir;Memoir: Roi-Namur Landings;
+memoir;Memoir;Memoir: Rzhev;
+memoir;Memoir;Memoir: Sword of Stalingrad;
+bcbs;Black Cross, Blue Sky;Black Cross, Blue Sky;
