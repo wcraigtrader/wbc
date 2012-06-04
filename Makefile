@@ -23,13 +23,13 @@ push:	build
 	rsync -v -rlD --no-times --delete $(BUILD)/ trader.name:/data/web/trader/wbc/$(YEAR)/
 
 clean:
-	rm -rf test
-	mkdir test
+	rm -rf $(BUILD)
+	mkdir $(BUILD)
 
 backup:
 	rm -rf save
 	mkdir save
-	rsync -av test/ save/
+	rsync -av $(BUILD)/ save/
 
 fetch:
 	wget -nv -O $(NEW_SPREADSHEET) $(SITE)$(SPREADSHEET)
