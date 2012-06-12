@@ -152,13 +152,18 @@ class WbcEvent( object ):
     def checkrounds( self ):
         """Check the current state of the event name to see if it describes a Heat or Round number"""
 
-        match = re.search( r'([HR]?)(\d+)/(\d+)$', self.name )
+        match = re.search( r'([DHR]?)(\d+)/(\d+)$', self.name )
         if match:
             ( t, n, m ) = match.groups()
             text = match.group( 0 )
             if t == "R":
                 self.start = int( n )
                 self.rounds = int( m )
+                self.name = self.name[:-len( text )].strip()
+            elif t == "D":
+                dtext = text.replace( 'D', '' )
+                self.type = self.type + ' Demo ' + dtext
+                self.type = self.type.strip()
                 self.name = self.name[:-len( text )].strip()
             elif t == "H" or t == '':
                 self.type = self.type + ' ' + text
@@ -167,7 +172,7 @@ class WbcEvent( object ):
 
     def checktypes( self, types ):
         """
-        Check the current state of the event name and strip off (and flag) any of the listed 
+        Check the current state of the event name and strip off ( and flag ) any of the listed
         event type codes
         """
 
@@ -186,7 +191,7 @@ class WbcEvent( object ):
 
     def checkduration( self ):
         """
-        Given the current event state, set the continuous event flag, 
+        Given the current event state, set the continuous event flag,
         and calculate the correct event length.
         """
 
@@ -341,7 +346,7 @@ class WbcXlsEvent( WbcEvent ):
                     try:
                         t = datetime.strptime( self.time, "%I:%M:%S %p" )
                     except:
-                        raise ValueError( 'Unable to format (%s) as a time' % self.time )
+                        raise ValueError( 'Unable to format ( % s ) as a time' % self.time )
 
         self.datetime = d.replace( hour=t.hour, minute=t.minute )
 
