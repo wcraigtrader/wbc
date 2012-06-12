@@ -44,7 +44,7 @@ fetch:
 
 prerequisites:
 	sudo apt-get install python-pip
-	sudo pip install --upgrade pytz
-	sudo pip install --upgrade BeautifulSoup
 	sudo pip install --upgrade icalendar
+	sudo pip install --upgrade beautifulsoup4
 	sudo pip install --upgrade xlrd
+	# sudo pip install --upgrade lxml
