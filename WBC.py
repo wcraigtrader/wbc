@@ -215,8 +215,12 @@ class WbcEvent( object ):
 
         self.code = None
 
+        # First check for Junior events
+        if self.junior:
+            self.code = 'junior'
+
         # Check for tournament codes
-        if self.meta.codes.has_key( self.name ):
+        elif self.meta.codes.has_key( self.name ):
             self.code = self.meta.codes[ self.name ]
             self.name = self.meta.names[ self.code ]
 
@@ -1505,7 +1509,7 @@ if __name__ == '__main__':
     wbc_allinone = WbcAllInOne( meta )
 
     # Parse the WBC Yearbook
-    names = dict( [( kx, vx ) for kx, vx in meta.names.items() if kx in wbc_schedule.current_tourneys ] )
+    # names = dict( [( kx, vx ) for kx, vx in meta.names.items() if kx in wbc_schedule.current_tourneys ] )
     # wbc_yearbook = WbcYearbook( meta, names )
 
     # Compare the event calendars with the WBC All-in-One schedule and the yearbook
