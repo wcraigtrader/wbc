@@ -2,8 +2,8 @@
 
 SITE=http://boardgamers.org/downloads/
 SCHEDULE=schedule
-YEAR=2012
-EXT=.xls
+YEAR=2013
+EXT=.xlsx
 
 SPREADSHEET=$(SCHEDULE)$(YEAR)$(EXT)
 OLD_SPREADSHEET=$(SCHEDULE)$(YEAR).old

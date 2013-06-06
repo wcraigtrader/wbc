@@ -25,8 +25,8 @@
 # sudo pip install icalendar
 # sudo pip install xlrd
 
-#xxlint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0612,W0621,W0702,W0703
-#pylint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0702
+# xxlint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0612,W0621,W0702,W0703
+# pylint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0702
 
 from bs4 import BeautifulSoup, Tag, NavigableString
 from cgi import escape
@@ -49,8 +49,8 @@ DEBUGGING = True
 
 #----- Time Constants --------------------------------------------------------
 
-TZ = pytz.timezone( 'America/New_York' ) # Tournament timezone
-UTC = pytz.timezone( 'UTC' )             # UTC timezone (for iCal)
+TZ = pytz.timezone( 'America/New_York' )  # Tournament timezone
+UTC = pytz.timezone( 'UTC' )  # UTC timezone (for iCal)
 
 #----- Utility methods -------------------------------------------------------
 
@@ -71,22 +71,20 @@ def parse_url( url ):
 
     return page
 
-def process_options():
+def process_options( meta ):
     """
     Parse command line options
     """
 
     LOGGER.debug( 'Parsing commandline options' )
 
-    this_year = datetime.now( TZ ).year
-
     parser = OptionParser()
-    parser.add_option( "-y", "--year", dest="year", metavar="YEAR", default=this_year, help="Year to process" )
+    parser.add_option( "-y", "--year", dest="year", metavar="YEAR", default=meta.this_year, help="Year to process" )
     parser.add_option( "-t", "--type", dest="type", metavar="TYPE", default="xls", help="Type of file to process (csv,xls)" )
     parser.add_option( "-i", "--input", dest="input", metavar="FILE", default=None, help="Schedule spreadsheet to process" )
     parser.add_option( "-o", "--output", dest="output", metavar="DIR", default="build", help="Directory for results" )
     parser.add_option( "-v", "--verbose", dest="verbose", action="store_true", default=False )
-    options, unused_args = parser.parse_args()
+    options, dummy_args = parser.parse_args()
 
     return options
 
@@ -123,7 +121,7 @@ class WbcEvent( object ):
         self.readrow( *args )
 
         # This test is for debugging purposes; string search on the spreadsheet event name
-        if DEBUGGING and self.name.find( 'Ingenius' ) >= 0:
+        if DEBUGGING and self.name.find( 'Ace of Aces' ) >= 0:
             pass
 
         # parse the data to generate useful fields
@@ -200,7 +198,7 @@ class WbcEvent( object ):
         else:
             self.continuous = False
 
-        if self.duration.endswith( "q" ):
+        if self.duration and self.duration.endswith( "q" ):
             self.continuous = True
             self.duration = self.duration[:-1]
 
@@ -315,7 +313,7 @@ class WbcXlsEvent( WbcEvent ):
             elif val.ctype == xlrd.XL_CELL_DATE:
                 val = xlrd.xldate_as_tuple( val.value, datemode )
                 if val[0]:
-                    val = datetime( *val ) # pylint: disable=W0142
+                    val = datetime( *val )  # pylint: disable=W0142
                 else:
                     val = time( val[3], val[4], val[5] )
             else:
@@ -359,22 +357,24 @@ class WbcXlsEvent( WbcEvent ):
 class WbcMetadata( object ):
     """Load metadata about events that is not available from other sources"""
 
+    this_year = datetime.now( TZ ).year
+
     # Data file names
     EVENTCODES = "wbc-event-codes.csv"
     OTHERCODES = "wbc-other-codes.csv"
 
-    others = []         # List of non-tournament event matching data
-    special = []        # List of non-tournament event codes
-    tourneys = []       # List of tournament codes
+    others = []  # List of non-tournament event matching data
+    special = []  # List of non-tournament event codes
+    tourneys = []  # List of tournament codes
 
-    codes = {}          # Name -> Code map for events
-    names = {}          # Code -> Name map for events
+    codes = {}  # Name -> Code map for events
+    names = {}  # Code -> Name map for events
 
-    durations = {}      # Special durations for events that have them
-    grognards = {}      # Special durations for grognard events that have them
-    playlate = {}       # Flag for events that may run past midnight
+    durations = {}  # Special durations for events that have them
+    grognards = {}  # Special durations for grognard events that have them
+    playlate = {}  # Flag for events that may run past midnight
 
-    first_day = None    # First calendar day for this year's convention
+    first_day = None  # First calendar day for this year's convention
 
     def __init__( self ):
         self.load_tourney_codes()
@@ -447,7 +447,7 @@ class WbcSchedule( object ):
     TEMPLATE = "wbc-template.html"
 
     # Recognized event flags
-    FLAVOR = [ 'FF', 'Circus', 'DDerby', 'Draft', 'Playoffs' ]
+    FLAVOR = [ 'AFC', 'FF', 'Circus', 'DDerby', 'Draft', 'Playoffs', 'FF' ]
     JUNIOR = [ 'Jr', 'Jr.', 'Junior' ]
     TEEN = [ 'Teen' ]
     MENTOR = [ 'Mentoring' ]
@@ -457,12 +457,12 @@ class WbcSchedule( object ):
 
     TYPES = [ 'PC' ] + FLAVOR + JUNIOR + TEEN + MENTOR + STYLE
 
-    rounds = {}         # Number of rounds for events that have rounds
-    events = {}         # Events, grouped by code and then sorted by start date/time
-    unmatched = []      # List of spreadsheet rows that don't match any coded events
-    calendars = {}      # Calendars for each event code
-    locations = {}      # Calendars by location
-    dailies = {}        # Calendars by date
+    rounds = {}  # Number of rounds for events that have rounds
+    events = {}  # Events, grouped by code and then sorted by start date/time
+    unmatched = []  # List of spreadsheet rows that don't match any coded events
+    calendars = {}  # Calendars for each event code
+    locations = {}  # Calendars by location
+    dailies = {}  # Calendars by date
 
     current_tourneys = []
     everything = None
@@ -601,7 +601,7 @@ class WbcSchedule( object ):
             # For each calendar event
             for event in calendar.subcomponents:
 
-                # Add it to the appropriate location calendar 
+                # Add it to the appropriate location calendar
                 location = self.get_or_create_location_calendar( event['LOCATION'] )
                 location.subcomponents.append( event )
 
@@ -714,7 +714,7 @@ class WbcSchedule( object ):
         playlate = self.meta.playlate.get( entry.code, None )
 
         if playlate == 'all':
-            pass # always
+            pass  # always
         elif next_start > midnight:
             next_start = tomorrow
         elif next_end <= midnight:
@@ -1210,6 +1210,14 @@ class WbcAllInOne( object ):
         if not self.page:
             return
 
+        title = self.page.findAll( 'title' )[0]
+        year = str( title.text )
+        year = year.strip().split()
+        year = int( year[0] )
+        if year != meta.this_year:
+            LOGGER.error( "All-in-one schedule for %d is out of date", year )
+            return
+
         tables = self.page.findAll( 'table' )
         rows = tables[1].findAll( 'tr' )
         for row in rows[1:]:
@@ -1244,7 +1252,7 @@ class WbcAllInOne( object ):
                         if hour >= 24:
                             hour = hour - 24
                             day = day + 1
-                        if day >= 32: # This only works because WBC is always in July/August, each of which has 31 days.
+                        if day >= 32:  # This only works because WBC is always in July/August, each of which has 31 days.
                             day = day - 31
                             month = month + 1
                         e.time = TZ.localize( current_date.replace( month=month, day=day, hour=hour ) )
@@ -1262,7 +1270,7 @@ class WbcAllInOne( object ):
                         else:
                             # For each entry ...
                             for chunk in text:
-                                times, unused, entry = chunk.partition( ':' )
+                                times, dummy, entry = chunk.partition( ':' )
                                 if times == 'others':
                                     # Apply this location to all entries without locations
                                     for e in current.values():
@@ -1292,6 +1300,15 @@ class WbcYearbook( object ):
 
     events = {}
 
+    codes = {
+        'stadium' : 'default',
+        'heat1' : 'H1',
+        'heat2' : 'H2',
+        'heat3' : 'H3',
+        'heat4' : 'H4',
+
+    }
+
     class Event( object ):
         """Simple data object to collect information about an event occuring at a specific time."""
 
@@ -1315,7 +1332,7 @@ class WbcYearbook( object ):
     def __init__( self, metadata, event_names ):
         self.meta = metadata
 
-        self.names = event_names # mapping of codes to event names
+        self.names = event_names  # mapping of codes to event names
         self.codes = event_names.keys()
         self.codes.sort()
 
@@ -1378,6 +1395,7 @@ class WbcYearbook( object ):
         return text
 
     def parse_type( self, tag ):
+        """Remove extraneous characters from page type"""
         event_type = tag['src'].lower()
         event_type = event_type.split( '/' )[-1]
         event_type = event_type.split( '.' )[0]
@@ -1483,15 +1501,15 @@ if __name__ == '__main__':
 
     meta = WbcMetadata()
 
-    opts = process_options()
+    opts = process_options( meta )
 
     # Load a schedule from a spreadsheet, based upon commandline options.
     wbc_schedule = WbcSchedule( meta, opts )
 
 #    testdata = { '8XX': '18XX', 'AFK': 'Afrika Korps', 'TTN': 'Titan' }
 #    wbc_yearbook = WbcYearbook( meta, testdata )
-
-#if False:
+#
+# if False:
 
     # Create calendar events from all of the spreadsheet events.
     wbc_schedule.create_wbc_calendars()
@@ -1508,9 +1526,9 @@ if __name__ == '__main__':
     # Parse the WBC All-in-One schedule
     wbc_allinone = WbcAllInOne( meta )
 
-    # Parse the WBC Yearbook
-    # names = dict( [( kx, vx ) for kx, vx in meta.names.items() if kx in wbc_schedule.current_tourneys ] )
-    # wbc_yearbook = WbcYearbook( meta, names )
+#     # Parse the WBC Yearbook
+#     names = dict( [( kx, vx ) for kx, vx in meta.names.items() if kx in wbc_schedule.current_tourneys ] )
+#     wbc_yearbook = WbcYearbook( meta, names )
 
     # Compare the event calendars with the WBC All-in-One schedule and the yearbook
     comparer = ScheduleComparer( wbc_schedule, wbc_allinone )
