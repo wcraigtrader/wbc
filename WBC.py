@@ -71,7 +71,7 @@ def parse_url( url ):
 
     return page
 
-def process_options( meta ):
+def process_options( metadata ):
     """
     Parse command line options
     """
@@ -79,10 +79,11 @@ def process_options( meta ):
     LOGGER.debug( 'Parsing commandline options' )
 
     parser = OptionParser()
-    parser.add_option( "-y", "--year", dest="year", metavar="YEAR", default=meta.this_year, help="Year to process" )
+    parser.add_option( "-y", "--year", dest="year", metavar="YEAR", default=metadata.this_year, help="Year to process" )
     parser.add_option( "-t", "--type", dest="type", metavar="TYPE", default="xls", help="Type of file to process (csv,xls)" )
     parser.add_option( "-i", "--input", dest="input", metavar="FILE", default=None, help="Schedule spreadsheet to process" )
     parser.add_option( "-o", "--output", dest="output", metavar="DIR", default="build", help="Directory for results" )
+    parser.add_option( "-n", "--dry-run", dest="write_files", action="store_false", default=True )
     parser.add_option( "-v", "--verbose", dest="verbose", action="store_true", default=False )
     options, dummy_args = parser.parse_args()
 
@@ -348,7 +349,7 @@ class WbcXlsEvent( WbcEvent ):
                     try:
                         t = datetime.strptime( self.time, "%I:%M:%S %p" )
                     except:
-                        raise ValueError( 'Unable to format ( % s ) as a time' % self.time )
+                        raise ValueError( 'Unable to format (%s) as a time' % self.time )
 
         self.datetime = d.replace( hour=t.hour, minute=t.minute )
 
@@ -442,6 +443,7 @@ class WbcSchedule( object ):
     The WbcSchedule class parses the entire WBC schedule spreadsheet and creates 
     iCalendar calendars for each event (with vEvents for each time slot).
     """
+    valid = False
 
     # Data file names
     TEMPLATE = "wbc-template.html"
@@ -486,6 +488,8 @@ class WbcSchedule( object ):
         self.load_events()
 
         self.prodid = "WBC %s" % self.options.year
+
+        self.valid = True
 
     def load_events( self ):
         """
@@ -1167,6 +1171,8 @@ class WbcAllInOne( object ):
 
     SITE_URL = 'http://boardgamers.org/wbc/allin1.htm'
 
+    valid = False
+
     TERRACE = 'Pt'
 
     colormap = {
@@ -1216,12 +1222,15 @@ class WbcAllInOne( object ):
         year = int( year[0] )
         if year != meta.this_year:
             LOGGER.error( "All-in-one schedule for %d is out of date", year )
+
             return
 
         tables = self.page.findAll( 'table' )
         rows = tables[1].findAll( 'tr' )
         for row in rows[1:]:
             self.load_row( row )
+
+        self.valid = True
 
     def load_row( self, row ):
         """Parse an individual all-in-one row to find times and rooms for an event"""
@@ -1252,7 +1261,7 @@ class WbcAllInOne( object ):
                         if hour >= 24:
                             hour = hour - 24
                             day = day + 1
-                        if day >= 32:  # This only works because WBC is always in July/August, each of which has 31 days.
+                        if day >= 32:  # This works because WBC always starts in either the end of July or beginning of August
                             day = day - 31
                             month = month + 1
                         e.time = TZ.localize( current_date.replace( month=month, day=day, hour=hour ) )
@@ -1296,18 +1305,36 @@ class WbcAllInOne( object ):
 class WbcYearbook( object ):
     """This class is used to parse schedule data from the annual yearbook pages"""
 
+# Basically there are two message streams to parse:
+#
+# 1) When events are happening
+# 2) Where events are happening
+#
+# When messages were originally framed as one day per table cell (<td>),
+# but with events that now stretch for 8 or more days, now some cells
+# may encompass as many as 5 days into 1 cell.  To complicate matters,
+# instead of indicating a date, images are used to indicate a day.  With
+# the convention stretching from 9 days from Saturday to the following Sunday,
+# there are two Saturdays and two Sundays, each represented by the same icon.
+
     SITE_URL = "http://boardgamers.org/yearbkex/%spge.htm"
+
+    valid = False
 
     events = {}
 
-    codes = {
-        'stadium' : 'default',
-        'heat1' : 'H1',
-        'heat2' : 'H2',
-        'heat3' : 'H3',
-        'heat4' : 'H4',
-
+    icon_meanings = {
+        'stadium' : 'dummy',
+        'demo' : 'Demo', 'demoweb' : 'Demo', 'jrwebicn': 'Junior', 'mulligan' : 'Mulligan', 'semi' : 'SF', 'final' : 'F',
+        'heat1' : 'H1', 'heat2' : 'H2', 'heat3' : 'H3', 'heat4' : 'H4',
+        'rd1' : 'R1', 'rd2' : 'R2', 'rd3' : 'R3', 'rd4' : 'R4', 'rd5' : 'R5', 'rd6' : 'R6',
+        'sat2' : 'SAT', 'sun2' : 'SUN', 'mon2' : 'MON', 'tue2' : 'TUE', 'wed2' : 'WED', 'thu2' : 'THU', 'fri2' : 'FRI',
     }
+
+    event_codes = [ 'H1', 'H2', 'H3', 'H4', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'Mulligan', 'Demo' ]
+
+    days = { 'SAT' : 0, 'SUN' : 1, 'MON' : 2, 'TUE' : 3, 'WED' : 4, 'THU' : 5, 'FRI' : 6 }
+
 
     class Event( object ):
         """Simple data object to collect information about an event occuring at a specific time."""
@@ -1324,8 +1351,8 @@ class WbcYearbook( object ):
         def __str__( self ):
             return '%s %s %s in %s at %s' % ( self.code, self.name, self.type, self.location, self.time )
 
-    class Tourney( object ):
-        """Simple data object to hold information about a group of events"""
+#     class Tourney( object ):
+#         """Simple data object to hold information about a group of events"""
 
 
 
@@ -1340,23 +1367,33 @@ class WbcYearbook( object ):
         for code in self.codes:
             self.load_yearbook_page( code )
 
+        self.valid = True
+
     def load_yearbook_page( self, code ):
         """Load and parse the yearbook page for a single tournament
         
         The schedule table within the page is a table that has a variable number of rows:
         
             [0] Contains the date the page was last updated -- ignored.
-            [1] Contains the event code and other image codes
+            [1] Contains the token code and other image codes
             [2:-2] Contains the schedule data, mostly as images, in two columns
             [-1] Contains the location information.
             
         As is the case with all of the WBC web pages, the HTML is ugly and malformed.
         """
 
-#        LOGGER.warn( 'Loading yearbook for %s: %s', code, self.names[ code ] )
+        LOGGER.info( 'Loading yearbook for %s: %s', code, self.names[ code ] )
+
+        # no longer needed
+#         if code in ['ATS', 'CMS', 'GCA', 'RRY', ]:
+#             LOGGER.warn( 'Skipping %s: %s', code, self.names[ code ] )
+#             return
+
+        # 2013 discrepancy
+        pagecode = 'MMA' if code == 'MRA' else code
+
 
         # Load page
-        pagecode = 'LVH' if code == 'LHV' else code
         page = parse_url( self.SITE_URL % pagecode.lower() )
         if not page:
             return
@@ -1365,22 +1402,122 @@ class WbcYearbook( object ):
         tables = page.findAll( 'table' )
         schedule = tables[2]
         rows = schedule.findAll( 'tr' )
-#        LOGGER.warn( '%s: %d rows in schedule', code, len( rows ) )
 
-        # parse last row for location data
+        # Parse 3rd row through next-to-last for event data
+        event_tokens = []
+        for row in rows[2:-1]:
+            for td in row.findAll( 'td' ):
+                event_tokens.append( '|' )
+                for tag in td.descendants:
+                    if isinstance( tag, NavigableString ):
+                        token = self.clean_token( tag )
+                        if token:
+                            event_tokens.append( token )
+                    elif isinstance( tag, Tag ) and tag.name in ( 'img' ):
+                        event_type = self.parse_type( tag )
+                        event_tokens.append( event_type )
+
+        # parse last row for room data
         loc_data = rows[-1].find( 'center' )
-        message = []
+        room_tokens = []
         for tag in loc_data.descendants:
             if isinstance( tag, NavigableString ):
-                room = self.parse_room( tag )
-                if room:
-                    message.append( room )
+                token = self.clean_token( tag )
+                if token:
+                    room_tokens.append( token )
             elif isinstance( tag, Tag ) and tag.name in ( 'img' ):
                 event_type = self.parse_type( tag )
-                message.append( event_type )
-        print code, message
+                room_tokens.append( event_type )
 
-    def parse_room( self, ns ):
+        # Parse room data to set rooms for events
+        event_map = {}
+        next_events = []
+        default_room = None
+        shift_room = None
+        shift_time = None
+        for token in room_tokens:
+            if token == 'dummy':
+                pass
+            elif isinstance( token, list ):
+                pass
+            elif token in self.event_codes:
+                next_events.append( token )
+            else:
+                room, dummy, s = token.partition( '>' )
+                try:
+                    r, dummy, t = s.partition( '@' )
+                    if r and t:
+                        d, dummy, t = t.partition( ':' )
+                        shift_time = self.meta.first_day + timedelta( days=self.days[d] ) + timedelta( hours=int( t ) )
+                        shift_room = r
+                except:
+                    shift_room = None
+
+                if room:
+                    default_room = room if not default_room else default_room
+                    for e in next_events:
+                        event_map[e] = room
+                next_events = []
+
+
+        # Parse event data to create events
+        found_event_time = False
+        etype = None
+        weekend_offset = 0
+        events = []
+        location = None
+        for token in event_tokens:
+            if token == '|':
+                # reset the frame
+                days = []
+                found_event_time = False
+            elif isinstance( token, list ):
+                # event time -- add an event
+                found_event_time = True
+                for day in days:
+                    x = self.days[ day ]
+                    if x < 2:
+                        x = x + weekend_offset
+                    d = self.meta.first_day + timedelta( days=x )
+                    for t in token:
+                        etime = d + t
+                        if not location:
+                            if shift_room and etime >= shift_time:
+                                location = shift_room
+                            else:
+                                location = default_room
+                        e = WbcYearbook.Event()
+                        e.code = code
+                        e.type = etype
+                        e.name = self.names[ code ]
+                        e.time = TZ.localize( etime )
+                        e.location = location
+                        events.append( e )
+                        location = None
+
+            elif self.days.has_key( token ):
+                # event date
+                days.append( token )
+                if self.days[token] > 1:
+                    weekend_offset = 7
+            else:
+                # event type
+                if token in [ 'SF', 'F' ]:
+                    if found_event_time:
+                        events[-1].type = token
+                    else:
+                        etype = token
+                elif token == 'PC':
+                    events[-1].name = events[-1].name + ' PC'
+                else:
+                    found_event_time = False
+                    etype = token
+                    location = event_map[etype] if event_map.has_key( etype ) else None
+
+        events.sort()
+        self.events[ code ] = events
+
+    def clean_token( self, ns ):
         """Remove extraneous characters and patterns from page text"""
 
         text = ns.strip()
@@ -1388,18 +1525,31 @@ class WbcYearbook( object ):
         text = text.replace( u'\xa0', ' ' )
         text = text.replace( '#', 'Table ' )
         text = text.replace( ';', ',' )
-        text = text.replace( ' ' * 8, ' ' )
-        text = text.replace( ' ' * 4, ' ' )
-        text = text.replace( ' ' * 2, ' ' )
+        text = text.replace( ' ' * 8, ' ' ).replace( ' ' * 4, ' ' ).replace( ' ' * 2, ' ' )
         text = text.replace( ', Table', '' )
-        return text
+        text = text.replace( 'Grognard PC', 'PC' )
+        text = text.replace( 'moving to ', '>' )
+        text = text.replace( 'shifts to ', '>' )
+        text = text.replace( 'switching to ', '>' )
+        text = text.replace( ', >', '>' ).replace( ',>', '>' )
+        text = text.replace( ' @ ', '@' )
+        text = text.replace( '@We9', '@WED:9' )
+        text = text.replace( '+', '' )
+        text = text.rstrip( ', ' )
+        try:
+            items = text.split( ', ' )
+            times = [ timedelta( hours=int( n ) ) for n in items if n > 8 ]
+            return times
+        except:
+            return text
 
     def parse_type( self, tag ):
         """Remove extraneous characters from page type"""
         event_type = tag['src'].lower()
         event_type = event_type.split( '/' )[-1]
         event_type = event_type.split( '.' )[0]
-        event_type = 'demo' if event_type == 'demoweb' else event_type
+        if self.icon_meanings.has_key( event_type ):
+            event_type = self.icon_meanings[ event_type ]
         return event_type
 
 #----- Schedule Comparison ---------------------------------------------------
@@ -1418,38 +1568,57 @@ class ScheduleComparer( object ):
         LOGGER.info( 'Verifying event calendars against All-in-One schedule' )
 
         schedule_key_set = set( self.schedule.current_tourneys )
-        allinone_key_set = set( self.allinone.events.keys() )
-        if self.yearbook:
+        if self.allinone.valid:
+            allinone_key_set = set( self.allinone.events.keys() )
+        if self.yearbook.valid:
             yearbook_key_set = set( self.yearbook.events.keys() )
 
-        allinone_extras = allinone_key_set - schedule_key_set
-        allinone_omited = schedule_key_set - allinone_key_set
-        if self.yearbook:
+        if self.allinone.valid:
+            allinone_extras = allinone_key_set - schedule_key_set
+            allinone_omited = schedule_key_set - allinone_key_set
+        else:
+            allinone_extras = set()
+            allinone_omited = set()
+        if self.yearbook.valid:
             yearbook_omited = schedule_key_set - yearbook_key_set
         else:
             yearbook_omited = set()
 
+        add_space = False
         if len( allinone_extras ):
             LOGGER.error( 'Extra events present in All-in-One: %s', allinone_extras )
+            add_space = True
         if len( allinone_omited ):
             LOGGER.error( 'Events omitted in All-in-One: %s', allinone_omited )
+            add_space = True
         if len( yearbook_omited ):
             LOGGER.error( 'Events omitted in Yearbook: %s', yearbook_omited )
-        if len( allinone_extras ) + len( allinone_omited ) + len( yearbook_omited ):
+            add_space = True
+        if add_space:
             LOGGER.error( '' )
 
-        code_set = schedule_key_set & allinone_key_set
-        if self.yearbook:
+        code_set = schedule_key_set
+        if self.allinone.valid:
+            code_set = code_set & allinone_key_set
+        if self.yearbook.valid:
             code_set = code_set & yearbook_key_set
+
         codes = list( code_set )
         codes.sort()
 
         for code in codes:
+            if code == 'SET':
+                pass
             self.check_schedule_against_allinone( code )
+            self.check_schedule_against_yearbook( code )
+
 
     def check_schedule_against_allinone( self, code ):
         """Compare the generated calendar for an event against the all-in-one schedule 
         for that event.  If there are differences, log them."""
+
+        if not self.allinone.valid:
+            return
 
         ai1_events = self.allinone.events[ code ]
         cal_events = self.schedule.calendars[code].subcomponents
@@ -1470,9 +1639,43 @@ class ScheduleComparer( object ):
 
         # If there are any discrepancies, log them
         if len( ai1_extra ) or len( cal_extra ):
-            LOGGER.error( '%s: All-in-One________________________ Calendar__________________________ __Length Name________________', code )
+            LOGGER.error( '%s: All-in-One________________________ Spreadsheet_______________________ __Length Name________________', code )
             cal_other = [ '%8s %s' % ( x['duration'].dt, x['summary'] ) for x in cal_events ]
             for tab, cal, other in izip_longest( ai1_comparison, cal_comparison, cal_other, fillvalue='' ):
+                mark = ' ' if tab == cal else '*'
+                LOGGER.error( '%4s %-34s %-34s %s', mark, tab, cal, other )
+            LOGGER.error( '' )
+
+    def check_schedule_against_yearbook( self, code ):
+        """Compare the generated calendar for an event against the yearbook schedule 
+        for that event.  If there are differences, log them."""
+
+        if not self.yearbook.valid:
+            return
+
+        ybk_events = self.yearbook.events[ code ]
+        cal_events = self.schedule.calendars[code].subcomponents
+
+        # Remove calendar events that aren't tracked on the yearbook schedule
+#       cal_events = [ e for e in cal_events if not e['summary'].find( ' Jr' ) >= 0 ]
+#       cal_events = [ e for e in cal_events if not e['summary'].endswith( 'After Action' ) ]
+#       cal_events = [ e for e in cal_events if not e['summary'].endswith( 'Draft' ) ]
+        cal_events = [ e for e in cal_events if e['dtstart'].dt.minute == 0 ]
+        ybk_events = [ e for e in ybk_events if e.type != 'Junior' ]
+
+        # Create lists of the comparable information from both sets of events
+        ybk_comparison = [ self.ybk_date_loc( x ) for x in ybk_events ]
+        cal_comparison = [ self.cal_date_loc( x ) for x in cal_events ]
+
+        # Compare the lists looking for discrepancies
+        ybk_extra = set( ybk_comparison ) - set( cal_comparison )
+        cal_extra = set( cal_comparison ) - set( ybk_comparison )
+
+        # If there are any discrepancies, log them
+        if len( ybk_extra ) or len( cal_extra ):
+            LOGGER.error( '%s: Yearbook__________________________ Spreadsheet_______________________ __Length Name________________', code )
+            cal_other = [ '%8s %s' % ( x['duration'].dt, x['summary'] ) for x in cal_events ]
+            for tab, cal, other in izip_longest( ybk_comparison, cal_comparison, cal_other, fillvalue='' ):
                 mark = ' ' if tab == cal else '*'
                 LOGGER.error( '%4s %-34s %-34s %s', mark, tab, cal, other )
             LOGGER.error( '' )
@@ -1484,6 +1687,15 @@ class ScheduleComparer( object ):
         start_time = ev.time.astimezone( TZ )
         location = ev.location
         location = 'Terrace' if location == 'Pt' else location
+        return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M:%S' ), location )
+
+    @staticmethod
+    def ybk_date_loc( ev ):
+        """Generate a summary of an yearbook event for comparer purposes"""
+
+        start_time = ev.time.astimezone( TZ )
+        location = ev.location
+        location = 'Terrace' if location.startswith( 'Terrace' ) else location
         return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M:%S' ), location )
 
     @staticmethod
@@ -1506,19 +1718,15 @@ if __name__ == '__main__':
     # Load a schedule from a spreadsheet, based upon commandline options.
     wbc_schedule = WbcSchedule( meta, opts )
 
-#    testdata = { '8XX': '18XX', 'AFK': 'Afrika Korps', 'TTN': 'Titan' }
-#    wbc_yearbook = WbcYearbook( meta, testdata )
-#
-# if False:
-
     # Create calendar events from all of the spreadsheet events.
     wbc_schedule.create_wbc_calendars()
 
-    # Write the individual event calendars.
-    wbc_schedule.write_all_calendar_files()
+    if opts.write_files:
+        # Write the individual event calendars.
+        wbc_schedule.write_all_calendar_files()
 
-    # Build the HTML index.
-    wbc_schedule.write_index_page()
+        # Build the HTML index.
+        wbc_schedule.write_index_page()
 
     # Print the unmatched events for rework.
     wbc_schedule.report_unprocessed_events()
@@ -1526,12 +1734,13 @@ if __name__ == '__main__':
     # Parse the WBC All-in-One schedule
     wbc_allinone = WbcAllInOne( meta )
 
-#     # Parse the WBC Yearbook
-#     names = dict( [( kx, vx ) for kx, vx in meta.names.items() if kx in wbc_schedule.current_tourneys ] )
-#     wbc_yearbook = WbcYearbook( meta, names )
+    # Parse the WBC Yearbook
+    names = dict( [( kx, vx ) for kx, vx in meta.names.items() if kx in wbc_schedule.current_tourneys ] )
+#     names = { '8XX': '18XX', 'AFK': 'Afrika Korps', 'IOV': 'Innovation', 'TTN': 'Titan', 'PZB': 'PanzerBlitz' }
+    wbc_yearbook = WbcYearbook( meta, names )
 
     # Compare the event calendars with the WBC All-in-One schedule and the yearbook
-    comparer = ScheduleComparer( wbc_schedule, wbc_allinone )
+    comparer = ScheduleComparer( wbc_schedule, wbc_allinone, wbc_yearbook )
     comparer.verify_event_calendars()
 
     LOGGER.info( "Done." )
