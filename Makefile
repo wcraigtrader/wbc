@@ -19,6 +19,9 @@ build:	clean
 	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD)
 	tar cf - Makefile WBC.py wbc-*-codes.csv wbc-template.html lgpl.txt | gzip > $(BUILD)/wbc-calendars.tar.gz
 
+dryrun:
+	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD) -n
+
 push:	build
 	rsync -v -rlD --no-times --delete $(BUILD)/ trader.name:/data/web/trader/wbc/$(YEAR)/
 

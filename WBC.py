@@ -122,7 +122,7 @@ class WbcEvent( object ):
         self.readrow( *args )
 
         # This test is for debugging purposes; string search on the spreadsheet event name
-        if DEBUGGING and self.name.find( 'Ace of Aces' ) >= 0:
+        if DEBUGGING and self.name.find( 'World At War' ) >= 0:
             pass
 
         # parse the data to generate useful fields
@@ -213,6 +213,11 @@ class WbcEvent( object ):
         """
 
         self.code = None
+
+        # Check for errors that will throw exceptions later
+        if not self.gm:
+            LOGGER.error( 'Event %s missing gm', self )
+            return
 
         # First check for Junior events
         if self.junior:
@@ -449,13 +454,13 @@ class WbcSchedule( object ):
     TEMPLATE = "wbc-template.html"
 
     # Recognized event flags
-    FLAVOR = [ 'AFC', 'FF', 'Circus', 'DDerby', 'Draft', 'Playoffs', 'FF' ]
+    FLAVOR = [ 'AFC', 'NFC', 'FF', 'Circus', 'DDerby', 'Draft', 'Playoffs', 'FF' ]
     JUNIOR = [ 'Jr', 'Jr.', 'Junior' ]
     TEEN = [ 'Teen' ]
     MENTOR = [ 'Mentoring' ]
     MULTIPLE = ['QF/SF/F', 'QF/SF', 'SF/F' ]
     SINGLE = [ 'QF', 'SF', 'F' ]
-    STYLE = [ 'After Action Debriefing', 'After Action', 'Awards', 'Demo', 'Mulligan' ] + MULTIPLE + SINGLE
+    STYLE = [ 'After Action Debriefing', 'After Action', 'Aftermath', 'Awards', 'Demo', 'Mulligan' ] + MULTIPLE + SINGLE
 
     TYPES = [ 'PC' ] + FLAVOR + JUNIOR + TEEN + MENTOR + STYLE
 
@@ -1305,36 +1310,38 @@ class WbcAllInOne( object ):
 class WbcYearbook( object ):
     """This class is used to parse schedule data from the annual yearbook pages"""
 
-# Basically there are two message streams to parse:
-#
-# 1) When events are happening
-# 2) Where events are happening
-#
-# When messages were originally framed as one day per table cell (<td>),
-# but with events that now stretch for 8 or more days, now some cells
-# may encompass as many as 5 days into 1 cell.  To complicate matters,
-# instead of indicating a date, images are used to indicate a day.  With
-# the convention stretching from 9 days from Saturday to the following Sunday,
-# there are two Saturdays and two Sundays, each represented by the same icon.
+    # Basically there are two message streams to parse:
+    #
+    # 1) When events are happening
+    # 2) Where events are happening
+    #
+    # When messages were originally framed as one day per table cell (<td>),
+    # but with events that now stretch for 8 or more days, now some cells
+    # may encompass as many as 5 days.  To complicate matters,
+    # instead of indicating a date, images are used to indicate a day.  With
+    # the convention stretching from 9 days from Saturday to the following Sunday,
+    # there are two Saturdays and two Sundays, each represented by the same icon.
 
     SITE_URL = "http://boardgamers.org/yearbkex/%spge.htm"
 
-    valid = False
+    pagemap = { 'MRA': 'MMA', }
+
+    skip = {
+        'CNS': "Can't match 30 minute rounds",
+        'EIS': 'Preview has split room name',
+        'KOH': 'Preview is missing time for last round',
+        'PDT': "Can't match 30 minute drafts",
+        'PGF': "Can't handle 'to conclusion'",
+        'ROS': 'Preview has Wheatland misspelled as Wheatlamd',
+        'SSB': "Can't match 30 minute drafts",
+        'T&T': 'Preview has H3 on Tuesday, not Thursday',
+        'TT2': 'Preview has demo at 21, instead of combined at 19',
+        'WAW': "Can't handle midday room switch",
+    }
 
     events = {}
 
-    icon_meanings = {
-        'stadium' : 'dummy',
-        'demo' : 'Demo', 'demoweb' : 'Demo', 'jrwebicn': 'Junior', 'mulligan' : 'Mulligan', 'semi' : 'SF', 'final' : 'F',
-        'heat1' : 'H1', 'heat2' : 'H2', 'heat3' : 'H3', 'heat4' : 'H4',
-        'rd1' : 'R1', 'rd2' : 'R2', 'rd3' : 'R3', 'rd4' : 'R4', 'rd5' : 'R5', 'rd6' : 'R6',
-        'sat2' : 'SAT', 'sun2' : 'SUN', 'mon2' : 'MON', 'tue2' : 'TUE', 'wed2' : 'WED', 'thu2' : 'THU', 'fri2' : 'FRI',
-    }
-
-    event_codes = [ 'H1', 'H2', 'H3', 'H4', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'Mulligan', 'Demo' ]
-
-    days = { 'SAT' : 0, 'SUN' : 1, 'MON' : 2, 'TUE' : 3, 'WED' : 4, 'THU' : 5, 'FRI' : 6 }
-
+    valid = False
 
     class Event( object ):
         """Simple data object to collect information about an event occuring at a specific time."""
@@ -1354,7 +1361,260 @@ class WbcYearbook( object ):
 #     class Tourney( object ):
 #         """Simple data object to hold information about a group of events"""
 
+    class Tourney( object ):
+        """Class to organize events for a Yearbook tournament."""
 
+        icon_meanings = {
+            'stadium' : 'dummy',
+            'demo' : 'Demo', 'demoweb' : 'Demo', 'jrwebicn': 'Junior', 'mulligan' : 'Mulligan', 'semi' : 'SF', 'final' : 'F',
+            'heat1' : 'H1', 'heat2' : 'H2', 'heat3' : 'H3', 'heat4' : 'H4',
+            'rd1' : 'R1', 'rd2' : 'R2', 'rd3' : 'R3', 'rd4' : 'R4', 'rd5' : 'R5', 'rd6' : 'R6',
+            'sat2' : 'SAT', 'sun2' : 'SUN', 'mon2' : 'MON', 'tue2' : 'TUE', 'wed2' : 'WED', 'thu2' : 'THU', 'fri2' : 'FRI',
+        }
+
+        event_codes = [ 'H1', 'H2', 'H3', 'H4', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'Mulligan', 'Demo', 'After Action', 'Draft' ]
+
+        days = { 'SAT' : 0, 'SUN' : 1, 'MON' : 2, 'TUE' : 3, 'WED' : 4, 'THU' : 5, 'FRI' : 6 }
+        reverse = { 0 : 'SAT', 1 : 'SUN', 2 : 'MON', 3 : 'TUE', 4 : 'WED', 5 : 'THU', 6 : 'FRI' }
+
+        dump = [ 'SSB', ]
+
+        default_room = None
+        shift_room = None
+        shift_time = None
+
+        event_tokens = None
+        room_tokens = None
+        event_map = None
+        events = None
+
+        def __init__( self, code, name, page, first_day ):
+
+            self.code = code
+            self.name = name
+            self.first_day = first_day
+
+            # Find schedule / rows
+            tables = page.findAll( 'table' )
+            schedule = tables[2]
+            rows = schedule.findAll( 'tr' )
+
+            self.get_event_tokens( rows )
+            self.get_room_tokens( rows )
+            self.debug()
+            self.create_event_map()
+            self.create_events()
+            self.events.sort()
+
+        def get_event_tokens( self, rows ):
+            """Parse 3rd row through next-to-last for event data"""
+
+            self.event_tokens = []
+
+            for row in rows[2:-1]:
+                for td in row.findAll( 'td' ):
+                    self.event_tokens.append( '|' )
+                    for tag in td.descendants:
+                        if isinstance( tag, NavigableString ):
+                            token = self.clean_token( tag )
+                            if token:
+                                self.event_tokens.append( token )
+                        elif isinstance( tag, Tag ) and tag.name in ( 'img' ):
+                            event_type = self.parse_type( tag )
+                            self.event_tokens.append( event_type )
+
+        def get_room_tokens( self, rows ):
+            """"parse last row for room data"""
+
+            self.room_tokens = []
+
+            for loc_data in rows[-1].findAll( 'center' ):
+                for tag in loc_data.descendants:
+                    if isinstance( tag, NavigableString ):
+                        token = self.clean_token( tag )
+                        if token:
+                            self.room_tokens.append( token )
+                    elif isinstance( tag, Tag ) and tag.name in ( 'img' ):
+                        event_type = self.parse_type( tag )
+                        self.room_tokens.append( event_type )
+
+        def debug( self ):
+            """Dump distilled data from webpage, before processing"""
+
+            if not self.code in self.dump:
+                return
+
+            chunks = []
+            for tokens in self.event_tokens:
+                if isinstance( tokens, list ):
+                    chunks.append( ';'.join( [ str( times.seconds / 3600 ) for times in tokens ] ) )
+                else:
+                    chunks.append( tokens )
+
+            event_message = '~'.join( chunks )
+            room_message = '~'.join( self.room_tokens )
+
+            LOGGER.warn( "%3s: %s", self.code, room_message )
+            LOGGER.warn( "     %s", event_message )
+
+            return
+
+        def create_event_map( self ):
+            """Parse room data to set rooms for events"""
+
+            next_events = []
+
+            self.event_map = {}
+
+            for token in self.room_tokens:
+                if token == 'dummy':
+                    pass  # Skip th estadium icon
+                elif isinstance( token, list ):
+                    pass  # If we see a list, it will contain a timedelta that is really the table number on the Terrace -- ignore it.
+                elif token in self.event_codes:
+                    next_events.append( token )
+                else:
+                    # We're looking at a room name, possibly followed by a second room name and a time.
+                    room, dummy, s = token.partition( '>' )
+                    try:
+                        r, dummy, t = s.partition( '@' )
+                        if r and t:
+                            d, dummy, t = t.partition( ':' )
+                            self.shift_time = self.first_day + timedelta( days=self.days[d] ) + timedelta( hours=int( t ) )
+                            self.shift_room = r
+                    except:
+                        self.shift_room = None
+
+                    if room:
+                        self.default_room = room if not self.default_room else self.default_room
+                        for e in next_events:
+                            self.event_map[e] = room
+                    next_events = []
+
+        def create_events( self ):
+            """Parse event data to create events"""
+
+            found_event_time = False
+            etype = None
+            weekend_offset = 0
+            location = None
+            last_day = None
+
+            self.events = []
+
+            for token in self.event_tokens:
+                if token == '|':
+                    # reset the frame
+                    days = []
+                    found_event_time = False
+                elif isinstance( token, list ):
+                    # event time -- add an event
+                    found_event_time = True
+
+                    # If there hasn't been a day specified in this frame, assume the day after the last one
+                    if len( days ) == 0 and last_day:
+                        days.append( self.reverse[( self.days[last_day] + 1 ) % 7] )
+
+                    for day in days:
+                        # If there are multiple days, only put demos on the last day of a block
+                        if etype == 'Demo' and day != days[-1]:
+                            continue
+
+                        # Calculate which day of the convention (accounting for two weekends)
+                        day_offset = self.days[ day ]
+                        if day_offset < 2:
+                            day_offset = day_offset + weekend_offset
+                        d = self.first_day + timedelta( days=day_offset )
+
+                        # For each time on this day, create a matching event
+                        for t in token:
+                            etime = d + t
+                            if not location:
+                                if self.shift_room and etime >= self.shift_time:
+                                    location = self.shift_room
+                                else:
+                                    location = self.default_room
+
+                            e = WbcYearbook.Event()
+                            e.code = self.code
+                            e.type = etype
+                            e.name = self.name
+                            e.time = TZ.localize( etime )
+                            e.location = location
+                            self.events.append( e )
+                            location = None
+
+                elif self.days.has_key( token ):
+                    # event date
+                    days.append( token )
+
+                    # If this day isn't Saturday or Sunday, then the next Saturday or Sunday we see will be from the second weekend.
+                    if self.days[token] > 1:
+                        weekend_offset = 7
+
+                    # Keep track of the last day seen
+                    last_day = token
+
+                else:
+                    # event type
+                    if token in [ 'SF', 'F', 'After Action' ]:
+                        if found_event_time:
+                            # if we found a time before these event types, then we've already created this event,
+                            # and we need to patch it with the correct type (and location, if necessary).
+                            self.events[-1].type = token
+                            if self.event_map.has_key( token ):
+                                self.events[-1].location = self.event_map[token]
+                        else:
+                            etype = token
+                    elif token == 'PC':
+                        self.events[-1].name = self.events[-1].name + ' PC'
+                    else:
+                        found_event_time = False
+                        etype = token
+                        location = self.event_map[etype] if self.event_map.has_key( etype ) else None
+
+        @staticmethod
+        def clean_token( ns ):
+            """Remove extraneous characters and patterns from page text"""
+
+            text = ns.strip()
+            text = text.replace( '\n', '' )
+            text = text.replace( u'\xa0', ' ' )
+            text = text.replace( '#', 'Table ' )
+            text = text.replace( ';', ',' )
+            text = text.replace( ' ' * 8, ' ' ).replace( ' ' * 4, ' ' ).replace( ' ' * 2, ' ' )
+            text = text.replace( ', Table', '' )
+            text = text.replace( 'Draft:', 'Draft' ).replace( 'DRAFT:', 'Draft' )
+            text = text.replace( 'After Action Briefing:', 'After Action' )
+            text = text.replace( 'After Action Briefing', 'After Action' )
+            text = text.replace( ' AFC', '' ).replace( ' NFC', '' ).replace( ' Super Bowl', '' )
+            text = text.replace( ' to completion', '' ).replace( ' till completion', '' )
+            text = text.replace( 'Grognard PC', 'PC' )
+            text = text.replace( 'moves to ', '>' )
+            text = text.replace( 'moving to ', '>' )
+            text = text.replace( 'shifts to ', '>' )
+            text = text.replace( 'switching to ', '>' )
+            text = text.replace( ', >', '>' ).replace( ',>', '>' )
+            text = text.replace( ' @ ', '@' )
+            text = text.replace( '@We9', '@WED:9' )
+            text = text.replace( '9-19', '9' )
+            text = text.replace( '+', '' )
+            text = text.rstrip( ', ' )
+            try:
+                items = text.split( ', ' )
+                times = [ timedelta( hours=int( n ) ) for n in items if n > 8 ]
+                return times
+            except:
+                return text
+
+        def parse_type( self, tag ):
+            """Remove extraneous characters from page type"""
+            event_type = tag['src'].lower()
+            event_type = event_type.split( '/' )[-1]
+            event_type = event_type.split( '.' )[0]
+            if self.icon_meanings.has_key( event_type ):
+                event_type = self.icon_meanings[ event_type ]
+            return event_type
 
     def __init__( self, metadata, event_names ):
         self.meta = metadata
@@ -1384,173 +1644,24 @@ class WbcYearbook( object ):
 
         LOGGER.info( 'Loading yearbook for %s: %s', code, self.names[ code ] )
 
-        # no longer needed
-#         if code in ['ATS', 'CMS', 'GCA', 'RRY', ]:
-#             LOGGER.warn( 'Skipping %s: %s', code, self.names[ code ] )
-#             return
-
-        # 2013 discrepancy
-        pagecode = 'MMA' if code == 'MRA' else code
-
-
-        # Load page
-        page = parse_url( self.SITE_URL % pagecode.lower() )
-        if not page:
+        # Skip any codes whose pages we can't handle
+        if self.skip.has_key( code ):
+            LOGGER.warn( 'Skipping %s: %s -- %s', code, self.names[ code ], self.skip[ code ] )
             return
 
-        # Find schedule / rows
-        tables = page.findAll( 'table' )
-        schedule = tables[2]
-        rows = schedule.findAll( 'tr' )
+        # Handle codes with the wrong URL
+        pagecode = self.pagemap[ code ] if self.pagemap.has_key( code ) else code
 
-        # Parse 3rd row through next-to-last for event data
-        event_tokens = []
-        for row in rows[2:-1]:
-            for td in row.findAll( 'td' ):
-                event_tokens.append( '|' )
-                for tag in td.descendants:
-                    if isinstance( tag, NavigableString ):
-                        token = self.clean_token( tag )
-                        if token:
-                            event_tokens.append( token )
-                    elif isinstance( tag, Tag ) and tag.name in ( 'img' ):
-                        event_type = self.parse_type( tag )
-                        event_tokens.append( event_type )
+        # Load page
+        url = self.SITE_URL % pagecode.lower()
+        page = parse_url( url )
+        if not page:
+            LOGGER.error( "Unable to load %s for %s", url, code )
+            return
 
-        # parse last row for room data
-        loc_data = rows[-1].find( 'center' )
-        room_tokens = []
-        for tag in loc_data.descendants:
-            if isinstance( tag, NavigableString ):
-                token = self.clean_token( tag )
-                if token:
-                    room_tokens.append( token )
-            elif isinstance( tag, Tag ) and tag.name in ( 'img' ):
-                event_type = self.parse_type( tag )
-                room_tokens.append( event_type )
+        t = WbcYearbook.Tourney( code, self.names[ code ], page, self.meta.first_day )
 
-        # Parse room data to set rooms for events
-        event_map = {}
-        next_events = []
-        default_room = None
-        shift_room = None
-        shift_time = None
-        for token in room_tokens:
-            if token == 'dummy':
-                pass
-            elif isinstance( token, list ):
-                pass
-            elif token in self.event_codes:
-                next_events.append( token )
-            else:
-                room, dummy, s = token.partition( '>' )
-                try:
-                    r, dummy, t = s.partition( '@' )
-                    if r and t:
-                        d, dummy, t = t.partition( ':' )
-                        shift_time = self.meta.first_day + timedelta( days=self.days[d] ) + timedelta( hours=int( t ) )
-                        shift_room = r
-                except:
-                    shift_room = None
-
-                if room:
-                    default_room = room if not default_room else default_room
-                    for e in next_events:
-                        event_map[e] = room
-                next_events = []
-
-
-        # Parse event data to create events
-        found_event_time = False
-        etype = None
-        weekend_offset = 0
-        events = []
-        location = None
-        for token in event_tokens:
-            if token == '|':
-                # reset the frame
-                days = []
-                found_event_time = False
-            elif isinstance( token, list ):
-                # event time -- add an event
-                found_event_time = True
-                for day in days:
-                    x = self.days[ day ]
-                    if x < 2:
-                        x = x + weekend_offset
-                    d = self.meta.first_day + timedelta( days=x )
-                    for t in token:
-                        etime = d + t
-                        if not location:
-                            if shift_room and etime >= shift_time:
-                                location = shift_room
-                            else:
-                                location = default_room
-                        e = WbcYearbook.Event()
-                        e.code = code
-                        e.type = etype
-                        e.name = self.names[ code ]
-                        e.time = TZ.localize( etime )
-                        e.location = location
-                        events.append( e )
-                        location = None
-
-            elif self.days.has_key( token ):
-                # event date
-                days.append( token )
-                if self.days[token] > 1:
-                    weekend_offset = 7
-            else:
-                # event type
-                if token in [ 'SF', 'F' ]:
-                    if found_event_time:
-                        events[-1].type = token
-                    else:
-                        etype = token
-                elif token == 'PC':
-                    events[-1].name = events[-1].name + ' PC'
-                else:
-                    found_event_time = False
-                    etype = token
-                    location = event_map[etype] if event_map.has_key( etype ) else None
-
-        events.sort()
-        self.events[ code ] = events
-
-    def clean_token( self, ns ):
-        """Remove extraneous characters and patterns from page text"""
-
-        text = ns.strip()
-        text = text.replace( '\n', '' )
-        text = text.replace( u'\xa0', ' ' )
-        text = text.replace( '#', 'Table ' )
-        text = text.replace( ';', ',' )
-        text = text.replace( ' ' * 8, ' ' ).replace( ' ' * 4, ' ' ).replace( ' ' * 2, ' ' )
-        text = text.replace( ', Table', '' )
-        text = text.replace( 'Grognard PC', 'PC' )
-        text = text.replace( 'moving to ', '>' )
-        text = text.replace( 'shifts to ', '>' )
-        text = text.replace( 'switching to ', '>' )
-        text = text.replace( ', >', '>' ).replace( ',>', '>' )
-        text = text.replace( ' @ ', '@' )
-        text = text.replace( '@We9', '@WED:9' )
-        text = text.replace( '+', '' )
-        text = text.rstrip( ', ' )
-        try:
-            items = text.split( ', ' )
-            times = [ timedelta( hours=int( n ) ) for n in items if n > 8 ]
-            return times
-        except:
-            return text
-
-    def parse_type( self, tag ):
-        """Remove extraneous characters from page type"""
-        event_type = tag['src'].lower()
-        event_type = event_type.split( '/' )[-1]
-        event_type = event_type.split( '.' )[0]
-        if self.icon_meanings.has_key( event_type ):
-            event_type = self.icon_meanings[ event_type ]
-        return event_type
+        self.events[ code ] = t.events
 
 #----- Schedule Comparison ---------------------------------------------------
 
@@ -1695,7 +1806,7 @@ class ScheduleComparer( object ):
 
         start_time = ev.time.astimezone( TZ )
         location = ev.location
-        location = 'Terrace' if location.startswith( 'Terrace' ) else location
+        location = 'Terrace' if location.startswith( 'Terr' ) else location
         return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M:%S' ), location )
 
     @staticmethod
@@ -1735,8 +1846,7 @@ if __name__ == '__main__':
     wbc_allinone = WbcAllInOne( meta )
 
     # Parse the WBC Yearbook
-    names = dict( [( kx, vx ) for kx, vx in meta.names.items() if kx in wbc_schedule.current_tourneys ] )
-#     names = { '8XX': '18XX', 'AFK': 'Afrika Korps', 'IOV': 'Innovation', 'TTN': 'Titan', 'PZB': 'PanzerBlitz' }
+    names = dict( [( key_code, val_name ) for key_code, val_name in meta.names.items() if key_code in wbc_schedule.current_tourneys ] )
     wbc_yearbook = WbcYearbook( meta, names )
 
     # Compare the event calendars with the WBC All-in-One schedule and the yearbook
