@@ -1,0 +1,35 @@
+WBC: Generate iCal calendars from the WBC Schedule spreadsheet
+
+PURPOSE:
+
+The World Boardgaming Championships (http://boardgamers.org/#wbc) is a huge
+annual boardgame tourney, with more than 100 tournaments running over the 
+course of 9 days.  While the WBC produces their event schedule in many forms,
+they don't produce iCal-style web calendars for the tournaments.  This program
+is intended to fill the gap.
+
+USAGE:
+
+Install the prerequisits and then run WBC from the command line:
+
+	mkdir build
+	python WBC.py
+
+This will download the available calendar references, compare them,
+and generate the appropriate iCal calendars in the build directory.
+
+LICENSE:
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
