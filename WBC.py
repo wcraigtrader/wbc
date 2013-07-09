@@ -1188,6 +1188,9 @@ class WbcAllInOne( object ):
         '#AAAA00': 'F',
     }
 
+    # Events that are miscoded (bad code : actual code)
+    codemap = { 'MMA': 'MRA', }
+
     events = {}
 
     class Event( object ):
@@ -1221,10 +1224,21 @@ class WbcAllInOne( object ):
         if not self.page:
             return
 
-        title = self.page.findAll( 'title' )[0]
-        year = str( title.text )
-        year = year.strip().split()
-        year = int( year[0] )
+        try:
+            title = self.page.findAll( 'title' )[0]
+            year = str( title.text )
+            year = year.strip().split()
+            year = int( year[0] )
+        except:
+            # Fetch from page body instead of page title.
+            # html.body.table.tr.td.p.font.b.font.NavigableString
+            try:
+                text = self.page.html.body.table.tr.td.p.font.b.font.text
+                year = str( text ).strip().split()
+                year = int( year[0] )
+            except:
+                year = 2013
+
         if year != meta.this_year:
             LOGGER.error( "All-in-one schedule for %d is out of date", year )
 
@@ -1245,6 +1259,8 @@ class WbcAllInOne( object ):
         cells = row.findAll( 'td' )
         code = str( cells[0].font.text ).strip( ';' )
         name = str( cells[1].font.text ).strip( ';* ' )
+
+        code = self.codemap[ code ] if self.codemap.has_key( code ) else code
 
         current_date = self.meta.first_day
 
@@ -1324,19 +1340,19 @@ class WbcYearbook( object ):
 
     SITE_URL = "http://boardgamers.org/yearbkex/%spge.htm"
 
-    pagemap = { 'MRA': 'MMA', }
+    codemap = { 'MRA': 'MMA', }
 
     skip = {
-        'CNS': "Can't match 30 minute rounds",
-        'EIS': 'Preview has split room name',
+#       'CNS': "Can't match 30 minute rounds",
+#       'EIS': 'Preview has split room name',
         'KOH': 'Preview is missing time for last round',
         'PDT': "Can't match 30 minute drafts",
         'PGF': "Can't handle 'to conclusion'",
-        'ROS': 'Preview has Wheatland misspelled as Wheatlamd',
+#       'ROS': 'Preview has Wheatland misspelled as Wheatlamd',
         'SSB': "Can't match 30 minute drafts",
-        'T&T': 'Preview has H3 on Tuesday, not Thursday',
-        'TT2': 'Preview has demo at 21, instead of combined at 19',
-        'WAW': "Can't handle midday room switch",
+#       'T&T': 'Preview has H3 on Tuesday, not Thursday',
+#       'TT2': 'Preview has demo at 21, instead of combined at 19',
+#       'WAW': "Can't handle midday room switch",
     }
 
     events = {}
@@ -1624,6 +1640,7 @@ class WbcYearbook( object ):
         self.codes.sort()
 
         LOGGER.info( 'Loading Yearbook schedule' )
+        # TODO: Load from the drop-down selector on http://boardgamers.org/yearbkex${YY}/
         for code in self.codes:
             self.load_yearbook_page( code )
 
@@ -1650,7 +1667,7 @@ class WbcYearbook( object ):
             return
 
         # Handle codes with the wrong URL
-        pagecode = self.pagemap[ code ] if self.pagemap.has_key( code ) else code
+        pagecode = self.codemap[ code ] if self.codemap.has_key( code ) else code
 
         # Load page
         url = self.SITE_URL % pagecode.lower()
@@ -1679,18 +1696,17 @@ class ScheduleComparer( object ):
         LOGGER.info( 'Verifying event calendars against All-in-One schedule' )
 
         schedule_key_set = set( self.schedule.current_tourneys )
-        if self.allinone.valid:
-            allinone_key_set = set( self.allinone.events.keys() )
-        if self.yearbook.valid:
-            yearbook_key_set = set( self.yearbook.events.keys() )
 
         if self.allinone.valid:
+            allinone_key_set = set( self.allinone.events.keys() )
             allinone_extras = allinone_key_set - schedule_key_set
             allinone_omited = schedule_key_set - allinone_key_set
         else:
             allinone_extras = set()
             allinone_omited = set()
+
         if self.yearbook.valid:
+            yearbook_key_set = set( self.yearbook.events.keys() )
             yearbook_omited = schedule_key_set - yearbook_key_set
         else:
             yearbook_omited = set()
@@ -1718,11 +1734,53 @@ class ScheduleComparer( object ):
         codes.sort()
 
         for code in codes:
-            if code == 'SET':
-                pass
-            self.check_schedule_against_allinone( code )
-            self.check_schedule_against_yearbook( code )
+            if self.allinone.valid and self.yearbook.valid:
+                self.check_schedules_against_each_other( code )
+            elif self.allinone.valid:
+                self.check_schedule_against_allinone( code )
+            else:
+                self.check_schedule_against_yearbook( code )
 
+    def check_schedules_against_each_other( self, code ):
+        """Compare all of the schedules against each other, logging the differences"""
+
+        if not self.allinone.valid or not self.yearbook.valid:
+            return
+
+        ai1_events = self.allinone.events[ code ]
+        ybk_events = self.yearbook.events[ code ]
+        cal_events = self.schedule.calendars[code].subcomponents
+
+        # Remove calendar events that aren't tracked on all schedules
+        cal_events = [ e for e in cal_events if not e['summary'].find( ' Jr' ) >= 0 ]
+        cal_events = [ e for e in cal_events if not e['summary'].endswith( 'After Action' ) ]
+        cal_events = [ e for e in cal_events if not e['summary'].endswith( 'Draft' ) ]
+        cal_events = [ e for e in cal_events if e['dtstart'].dt.minute == 0 ]
+        ybk_events = [ e for e in ybk_events if e.type != 'Junior' ]
+        ybk_events = [ e for e in ybk_events if e.type != 'After Action' ]
+
+        # Create lists of the comparable information from both sets of events
+        ai1_comparison = [ self.ai1_date_loc( x ) for x in ai1_events ]
+        ybk_comparison = [ self.ybk_date_loc( x ) for x in ybk_events ]
+        cal_comparison = [ self.cal_date_loc( x ) for x in cal_events ]
+
+        # Compare the lists looking for discrepancies
+        ac_extra = set( ai1_comparison ) - set( cal_comparison )
+        ca_extra = set( cal_comparison ) - set( ai1_comparison )
+        ay_extra = set( ai1_comparison ) - set( ybk_comparison )
+        ya_extra = set( ybk_comparison ) - set( ai1_comparison )
+        yc_extra = set( ybk_comparison ) - set( cal_comparison )
+        cy_extra = set( cal_comparison ) - set( ybk_comparison )
+
+        extras = len( ac_extra ) or len( ca_extra ) or len( ay_extra ) or len( ya_extra ) or len( yc_extra ) or len( cy_extra )
+
+        if extras:
+            LOGGER.error( '%s: All-in-One________________________ Yearbook__________________________ Spreadsheet_______________________ __Length Name________________', code )
+            cal_other = [ '%8s %s' % ( x['duration'].dt, x['summary'] ) for x in cal_events ]
+            for ai1, ybk, cal, other in izip_longest( ai1_comparison, ybk_comparison, cal_comparison, cal_other, fillvalue='' ):
+                mark = ' ' if ai1 == ybk and ybk == cal else '*'
+                LOGGER.error( '%4s %-34s %-34s %-34s %s', mark, ai1, ybk, cal, other )
+            LOGGER.error( '' )
 
     def check_schedule_against_allinone( self, code ):
         """Compare the generated calendar for an event against the all-in-one schedule 
@@ -1736,7 +1794,7 @@ class ScheduleComparer( object ):
 
         # Remove calendar events that aren't tracked on the all-in-one schedule
         cal_events = [ e for e in cal_events if not e['summary'].find( ' Jr' ) >= 0 ]
-#       cal_events = [ e for e in cal_events if not e['summary'].endswith( 'After Action' ) ]
+        cal_events = [ e for e in cal_events if not e['summary'].endswith( 'After Action' ) ]
         cal_events = [ e for e in cal_events if not e['summary'].endswith( 'Draft' ) ]
         cal_events = [ e for e in cal_events if e['dtstart'].dt.minute == 0 ]
 
@@ -1789,6 +1847,33 @@ class ScheduleComparer( object ):
             for tab, cal, other in izip_longest( ybk_comparison, cal_comparison, cal_other, fillvalue='' ):
                 mark = ' ' if tab == cal else '*'
                 LOGGER.error( '%4s %-34s %-34s %s', mark, tab, cal, other )
+            LOGGER.error( '' )
+
+    def check_allinone_against_yearbook( self, code ):
+        """Check the All-in-One schedule against the Yearbook schedule"""
+
+        if not self.allinone.valid or not self.yearbook.valid:
+            return
+
+        ai1_events = self.allinone.events[ code ]
+        ybk_events = self.yearbook.events[ code ]
+
+        # Remove yearbook events that aren't tracked on the all-in-one schedule
+
+        # Create lists of the comparable information from both sets of events
+        ai1_comparison = [ self.ai1_date_loc( x ) for x in ai1_events ]
+        ybk_comparison = [ self.ybk_date_loc( x ) for x in ybk_events ]
+
+        # Compare the lists looking for discrepancies
+        ai1_extra = set( ai1_comparison ) - set( ybk_comparison )
+        ybk_extra = set( ybk_comparison ) - set( ai1_comparison )
+
+        # If there are any discrepancies, log them
+        if len( ybk_extra ) or len( ai1_extra ):
+            LOGGER.error( '%s: All-in-One________________________ Yearbook__________________________', code )
+            for tab, cal in izip_longest( ai1_comparison, ybk_comparison, fillvalue='' ):
+                mark = ' ' if tab == cal else '*'
+                LOGGER.error( '%4s %-34s %-34s', mark, tab, cal )
             LOGGER.error( '' )
 
     @staticmethod
