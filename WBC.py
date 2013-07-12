@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-#----- Copyright (c) 2010 by W. Craig Trader ---------------------------------
+#----- Copyright (c) 2010-2013 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -451,7 +451,7 @@ class WbcSchedule( object ):
     valid = False
 
     # Data file names
-    TEMPLATE = "wbc-template.html"
+    TEMPLATE = "index-template.html"
 
     # Recognized event flags
     FLAVOR = [ 'AFC', 'NFC', 'FF', 'Circus', 'DDerby', 'Draft', 'Playoffs', 'FF' ]
@@ -1765,16 +1765,16 @@ class ScheduleComparer( object ):
         cal_comparison = [ self.cal_date_loc( x ) for x in cal_events ]
 
         # Compare the lists looking for discrepancies
-        ac_extra = set( ai1_comparison ) - set( cal_comparison )
-        ca_extra = set( cal_comparison ) - set( ai1_comparison )
-        ay_extra = set( ai1_comparison ) - set( ybk_comparison )
-        ya_extra = set( ybk_comparison ) - set( ai1_comparison )
-        yc_extra = set( ybk_comparison ) - set( cal_comparison )
-        cy_extra = set( cal_comparison ) - set( ybk_comparison )
+        ac_changes = set( ai1_comparison ) - set( cal_comparison )
+        ca_changes = set( cal_comparison ) - set( ai1_comparison )
+        ay_changes = set( ai1_comparison ) - set( ybk_comparison )
+        ya_changes = set( ybk_comparison ) - set( ai1_comparison )
+        yc_changes = set( ybk_comparison ) - set( cal_comparison )
+        cy_changes = set( cal_comparison ) - set( ybk_comparison )
 
-        extras = len( ac_extra ) or len( ca_extra ) or len( ay_extra ) or len( ya_extra ) or len( yc_extra ) or len( cy_extra )
+        changes = len( ac_changes ) or len( ca_changes ) or len( ay_changes ) or len( ya_changes ) or len( yc_changes ) or len( cy_changes )
 
-        if extras:
+        if changes:
             LOGGER.error( '%s: All-in-One________________________ Yearbook__________________________ Spreadsheet_______________________ __Length Name________________', code )
             cal_other = [ '%8s %s' % ( x['duration'].dt, x['summary'] ) for x in cal_events ]
             for ai1, ybk, cal, other in izip_longest( ai1_comparison, ybk_comparison, cal_comparison, cal_other, fillvalue='' ):
