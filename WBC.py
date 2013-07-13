@@ -156,7 +156,8 @@ class WbcEvent( object ):
             raise AttributeError( key )
 
     def __repr__( self ):
-        return repr( self.__dict__ )
+        return "%s @ %s %s on %s" % ( self.event, self.date, self.time, self.line )
+#        return repr( self.__dict__ )
 
     def checkrounds( self ):
         """Check the current state of the event name to see if it describes a Heat or Round number"""
@@ -646,7 +647,7 @@ class WbcSchedule( object ):
         calendar = self.get_or_create_event_calendar( event.code )
 
         # This test is for debugging purposes, and is only good for an event that was sucessfully coded
-        if DEBUGGING and event.code in ( 'SSB', ):
+        if DEBUGGING and event.code in ( 'LST', ):
             pass
 
         if event.code == 'WAW':
@@ -1379,14 +1380,18 @@ class WbcYearbook( object ):
         time = None
         location = None
 
+        def __init__( self, code, name, etype, etime, location ):
+            self.code = code
+            self.name = name
+            self.type = etype
+            self.time = etime
+            self.location = location
+
         def __cmp__( self, other ):
             return cmp( self.time, other.time )
 
         def __str__( self ):
             return '%s %s %s in %s at %s' % ( self.code, self.name, self.type, self.location, self.time )
-
-#     class Tourney( object ):
-#         """Simple data object to hold information about a group of events"""
 
     class Tourney( object ):
         """Class to organize events for a Yearbook tournament."""
@@ -1404,7 +1409,7 @@ class WbcYearbook( object ):
         days = { 'SAT' : 0, 'SUN' : 1, 'MON' : 2, 'TUE' : 3, 'WED' : 4, 'THU' : 5, 'FRI' : 6 }
         reverse = { 0 : 'SAT', 1 : 'SUN', 2 : 'MON', 3 : 'TUE', 4 : 'WED', 5 : 'THU', 6 : 'FRI' }
 
-        dump = [ 'SSB', ]
+        dump = [ ]  # List of codes to dump for debugging
 
         default_room = None
         shift_room = None
@@ -1468,7 +1473,7 @@ class WbcYearbook( object ):
         def debug( self ):
             """Dump distilled data from webpage, before processing"""
 
-            if not self.code in self.dump:
+            if not DEBUGGING or not self.code in self.dump:
                 return
 
             chunks = []
@@ -1562,12 +1567,7 @@ class WbcYearbook( object ):
                                 else:
                                     location = self.default_room
 
-                            e = WbcYearbook.Event()
-                            e.code = self.code
-                            e.type = etype
-                            e.name = self.name
-                            e.time = TZ.localize( etime )
-                            e.location = location
+                            e = WbcYearbook.Event( self.code, self.name, etype, TZ.localize( etime ), location )
                             self.events.append( e )
                             location = None
 
@@ -1710,6 +1710,7 @@ class ScheduleComparer( object ):
         self.schedule = s
         self.allinone = a
         self.yearbook = y
+        self.parser = None
 
     def verify_event_calendars( self ):
         """Compare the collections of events from both the calendars and the schedule"""
@@ -1773,6 +1774,8 @@ class ScheduleComparer( object ):
                 self.check_schedule_against_yearbook( code )
 
     def initialize_discrepancies_report( self ):
+        """Initial discrepancies report from template"""
+
         with open( self.TEMPLATE, "r" ) as f:
             template = f.read()
 
@@ -1805,13 +1808,68 @@ class ScheduleComparer( object ):
         time_list = list( time_set )
         time_list.sort()
 
+        label = self.meta.names[code]
+
         discrepancies = False
 
         rows = []
+        self.create_discrepancy_header( rows, code )
 
-        label = self.meta.names[ code ]
+        # For each date/time combination, compare all of the events at that time
+        for starting_time in time_list:
+            # Start with empty cells
+            details = [( None, ), ( None, ), ( None, ), ]
 
-        # Create the first row of the discrepancies table (code, name, headers)
+            # Fill in the All-in-One event, if present
+            if ai1_timemap.has_key( starting_time ):
+                e = ai1_timemap[ starting_time ]
+                location = 'Terrace' if e.location == 'Pt' else e.location
+                details[0] = ( location, e.type )
+
+            # Fiil in the Preview event, if present
+            if ybk_timemap.has_key( starting_time ):
+                e = ybk_timemap[ starting_time ]
+                location = 'Terrace' if e.location.startswith( 'Terr' ) else e.location
+                details[1] = ( location, e.type )
+
+            # Fill in the spreadsheet event, if present
+            if cal_timemap.has_key( starting_time ):
+                e = cal_timemap[ starting_time ]
+                location = 'Terrace' if e['location'].startswith( 'Terr' ) else e['location']
+                summary = e['summary']
+                summary = summary[len( label ) + 1:] if summary.startswith( label ) else summary
+                seconds = e['duration'].dt.seconds
+                hours = int( seconds / 3600 )
+                minutes = int ( ( seconds - 3600 * hours ) / 60 )
+                duration = "%d:%02d" % ( hours, minutes )
+                details[2] = ( location, summary, duration )
+
+            result = self.add_discrepancy_row( rows, starting_time, details )
+            discrepancies = discrepancies or result
+
+        # If we have notes, add them
+        if self.yearbook.notes.has_key( code ) :
+            discrepancies = True
+            tr = self.parser.new_tag( 'tr' )
+            td = self.parser.new_tag( 'td' )
+            td['colspan'] = 8
+            td['class'] = 'note'
+            td.insert( 0, self.parser.new_string( self.yearbook.notes[ code ] ) )
+            tr.insert( len( tr ), td )
+            rows.append( tr )
+
+        # Set the correct row span for this event
+        rows[0].next['rowspan'] = len( rows )
+
+        # If there were discrepancies, then add the rows to the report
+        if discrepancies:
+            self.add_discrepancies_to_report( rows )
+
+    def create_discrepancy_header( self, rows, code ):
+        """Create the first row of the discrepancies table (code, name, headers)"""
+
+        label = self.meta.names[code]
+
         tr = self.parser.new_tag( 'tr' )
 
         th = self.parser.new_tag( 'th' )
@@ -1841,106 +1899,72 @@ class ScheduleComparer( object ):
 
         rows.append( tr )
 
-        # For each date/time combination, compare all of the events at that time
-        for t in time_list:
+    def add_discrepancy_row( self, rows, starting_time, details ):
+        """Format a discrepancy row for this time"""
 
-            # Start with empty cells
-            details = [( None, ), ( None, ), ( None, ), ]
+        # Calculate which calendars are different than the others
+        if details[0][0] == details[1][0] and details[1][0] == details[2][0]:
+            differences = set()
+        elif details[0][0] == details[1][0]:
+            differences = set( [2] )
+        elif details[0][0] == details[2][0]:
+            differences = set( [1] )
+        elif details[1][0] == details[2][0]:
+            differences = set( [0] )
+        else:
+            differences = set( [0, 1, 2] )
 
-            # Fill in the All-in-One event, if present
-            if ai1_timemap.has_key( t ):
-                e = ai1_timemap[ t ]
-                location = 'Terrace' if e.location == 'Pt' else e.location
-                details[0] = ( location, e.type )
-
-            # Fiil in the Preview event, if present
-            if ybk_timemap.has_key( t ):
-                e = ybk_timemap[ t ]
-                location = 'Terrace' if e.location.startswith( 'Terr' ) else e.location
-                details[1] = ( location, e.type )
-
-            # Fill in the spreadsheet event, if present
-            if cal_timemap.has_key( t ):
-                e = cal_timemap[ t ]
-                location = 'Terrace' if e['location'].startswith( 'Terr' ) else e['location']
-                summary = e['summary']
-                summary = summary[len( label ) + 1:] if summary.startswith( label ) else summary
-                seconds = e['duration'].dt.seconds
-                hours = int( seconds / 3600 )
-                minutes = int ( ( seconds - 3600 * hours ) / 60 )
-                duration = "%d:%02d" % ( hours, minutes )
-                details[2] = ( location, summary, duration )
-
-            # Calculate which calendars are different than the others
-            if details[0][0] == details[1][0] and details[1][0] == details[2][0]:
-                different = set()
-            elif details[0][0] == details[1][0]:
-                different = set( [2] )
-            elif details[0][0] == details[2][0]:
-                different = set( [1] )
-            elif details[1][0] == details[2][0]:
-                different = set( [0] )
-            else:
-                different = set( [0, 1, 2] )
-
-            discrepancies = discrepancies or len( different ) > 0
-
-            # Format a row for this time
-            tr = self.parser.new_tag( 'tr' )
-            td = self.parser.new_tag( 'td' )
-            td.insert( 0, self.parser.new_string( t.strftime( '%a %m-%d %H:%M' ) ) )
-            tr.insert( len( tr ), td )
-
-            # For each detailed event, create appropriately marked cells
-            for i in range( len( details ) ):
-                if details[i][0] == None:
-                    td = self.parser.new_tag( 'td' )
-                    td['colspan'] = 2 if i < 2 else 3
-                    if i in different:
-                        td['class'] = 'diff'
-                    tr.insert( len( tr ), td )
-                else:
-                    for j in range( len( details[i] ) ):
-                        td = self.parser.new_tag( 'td' )
-                        if i in different:
-                            td['class'] = 'diff'
-                        value = '' if details[i][j] == None else details[i][j]
-                        td.insert( 0, self.parser.new_string( value ) )
-                        tr.insert( len( tr ), td )
-
-            rows.append( tr )
-
-        # If we have notes, add them
-        if self.yearbook.notes.has_key( code ) :
-            discrepancies = True
-            tr = self.parser.new_tag( 'tr' )
-            td = self.parser.new_tag( 'td' )
-            td['colspan'] = 8
-            td['class'] = 'note'
-            td.insert( 0, self.parser.new_string( self.yearbook.notes[ code ] ) )
-            tr.insert( len( tr ), td )
-            rows.append( tr )
-
-        rows[0].next['rowspan'] = len( rows )
-
-        # Add a blank cell for
+        # Create a new row
         tr = self.parser.new_tag( 'tr' )
+
+        # Add the starting time for this row
         td = self.parser.new_tag( 'td' )
-        td['colspan'] = 9
+        td.insert( 0, self.parser.new_string( starting_time.strftime( '%a %m-%d %H:%M' ) ) )
         tr.insert( len( tr ), td )
+
+        # For each detailed event, create appropriately marked cells
+        for i in range( len( details ) ):
+            if details[i][0] == None:
+                td = self.parser.new_tag( 'td' )
+                td['colspan'] = 2 if i < 2 else 3
+                if i in differences:
+                    td['class'] = 'diff'
+                tr.insert( len( tr ), td )
+            else:
+                for j in range( len( details[i] ) ):
+                    td = self.parser.new_tag( 'td' )
+                    if i in differences:
+                        td['class'] = 'diff'
+                    value = '' if details[i][j] == None else details[i][j]
+                    td.insert( 0, self.parser.new_string( value ) )
+                    tr.insert( len( tr ), td )
+
         rows.append( tr )
 
-        # If there were discrepancies, then add the rows to the report
-        if discrepancies:
-            table = self.parser.find( 'div', { 'id' : 'details' } ).table
-            for row in rows:
-                table.insert( len( table ), row )
+        return len( differences ) > 0
+
+    def add_discrepancies_to_report( self, rows ):
+        """Add these rows to the discrepancies report"""
+
+        table = self.parser.find( 'div', {'id':'details'} ).table
+
+        if len( table ):
+            # Add a blank cell for padding
+            tr = self.parser.new_tag( 'tr' )
+            td = self.parser.new_tag( 'td' )
+            td['colspan'] = 9
+            tr.insert( len( tr ), td )
+            table.insert( len( table ), tr )
+
+        for row in rows:
+            table.insert( len( table ), row )
 
     def write_discrepancies_report( self ):
+        """Write the discrepancies report, in a nice pretty format"""
+
         path = os.path.join( self.schedule.options.output, "report.html" )
         with open( path, "w" ) as f:
             f.write( self.parser.prettify() )
-
 
     def check_schedules_against_each_other( self, code ):
         """Compare all of the schedules against each other, logging the differences"""
