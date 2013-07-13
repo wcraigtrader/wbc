@@ -1,46 +1,46 @@
-Code;Description;Name;Format;
-auction;Auction Store;Auction & Auction Store Check-In;Auction;
-auction;Auction Store;Auction Check-In;Register;
-auction;Auction Store;;Auction;
-auction;Auction Store;;Sales;
-auction;Auction Store;;Register;
-bcbs;Black Cross; Blue Sky;Black Cross; Blue Sky
-cep;Civilization Expansion Project;Civilization Expansion Project;;
-gaming;Open Gaming;Library Closed;;
-gaming;Open Gaming;Library Closed-ALL GAMES DUE;;
-gaming;Open Gaming;Open Gaming;;
-gaming;Open Gaming;Open Gaming & Library;;
-gaming;Open Gaming;Open Gaming & Library Open;;
-junior;Junior Events;;Junior;
-meeting;Meetings;;Meeting;
-meeting;Meetings;;Meeeting;
-memoir;Memoir;"Memoir; El Alamein Campaign";;
-memoir;Memoir;"Memoir; Overlord Campaign";;
-memoir;Memoir;"Memoir; Russo-Finnish War";;
-memoir;Memoir;"Memoir; Stalingrad Campaign";;
-memoir;Memoir;"Memoir; Tigers Campaign";;
-memoir;Memoir;Memoir: Bastogne;;
-memoir;Memoir;Memoir: Factory Fight;;
-memoir;Memoir;Memoir: Firefight in Nef;;
-memoir;Memoir;Memoir: Iwo Jima;;
-memoir;Memoir;Memoir: Prokhorovka;;
-memoir;Memoir;Memoir: Roi-Namur Landings;;
-memoir;Memoir;Memoir: Rzhev;;
-memoir;Memoir;Memoir: Stalingrad Perdition;;
-memoir;Memoir;Memoir: Sword Beach;;
-memoir;Memoir;Memoir: Sword of Stalingrad;;
-memoir;Memoir;Memoir: The Hell of Munda;;
-memoir;Memoir;Memoir: Tigers in the Snow;;
-memoir;Memoir;Memoir: Wamach & Bigonville;;
-mmw;Mr. Madison's War;Mr. Madison's War;Prototype;
-panels;Panels;;Panel;
-preview;Preview;;Preview;
-registration;Registration;Registration;;
-registration;Registration;Registration - turn in all Event paperwork;;
-registration;Registration;Registration Closes;;
-sampler;Sampler;Sampler;Sampler;
-sampler;Sampler Showcase;Sampler Showcase;Sampler;
-seminar;Seminars;;Seminar;
-witswagers;Wits & Wagers;Wits & Wagers Game Show;;
-registration;Registration;Registration - turn in all Event paperwork & pick up prizes ASAP;;
-registration;Registration;Registration Closes - See You Next Year on Aug. 4  10, 2014;;
+Code,Description,Name,Format,
+auction,Auction Store,Auction & Auction Store Check-In,Auction,
+auction,Auction Store,Auction Check-In,Register,
+auction,Auction Store,,Auction,
+auction,Auction Store,,Sales,
+auction,Auction Store,,Register,
+bcbs,Black Cross, Blue Sky,Black Cross, Blue Sky
+cep,Civilization Expansion Project,Civilization Expansion Project,,
+gaming,Open Gaming,Library Closed,,
+gaming,Open Gaming,Library Closed-ALL GAMES DUE,,
+gaming,Open Gaming,Open Gaming,,
+gaming,Open Gaming,Open Gaming & Library,,
+gaming,Open Gaming,Open Gaming & Library Open,,
+junior,Junior Events,,Junior,
+meeting,Meetings,,Meeting,
+meeting,Meetings,,Meeeting,
+memoir,Memoir,Memoir, El Alamein Campaign,
+memoir,Memoir,Memoir, Overlord Campaign,
+memoir,Memoir,Memoir, Russo-Finnish War,
+memoir,Memoir,Memoir, Stalingrad Campaign,
+memoir,Memoir,Memoir, Tigers Campaign,
+memoir,Memoir,Memoir: Bastogne,,
+memoir,Memoir,Memoir: Factory Fight,,
+memoir,Memoir,Memoir: Firefight in Nef,,
+memoir,Memoir,Memoir: Iwo Jima,,
+memoir,Memoir,Memoir: Prokhorovka,,
+memoir,Memoir,Memoir: Roi-Namur Landings,,
+memoir,Memoir,Memoir: Rzhev,,
+memoir,Memoir,Memoir: Stalingrad Perdition,,
+memoir,Memoir,Memoir: Sword Beach,,
+memoir,Memoir,Memoir: Sword of Stalingrad,,
+memoir,Memoir,Memoir: The Hell of Munda,,
+memoir,Memoir,Memoir: Tigers in the Snow,,
+memoir,Memoir,Memoir: Wamach & Bigonville,,
+mmw,Mr. Madison's War,Mr. Madison's War,Prototype,
+panels,Panels,,Panel,
+preview,Preview,,Preview,
+registration,Registration,Registration,,
+registration,Registration,Registration - turn in all Event paperwork,,
+registration,Registration,Registration Closes,,
+sampler,Sampler,Sampler,Sampler,
+sampler,Sampler Showcase,Sampler Showcase,Sampler,
+seminar,Seminars,,Seminar,
+witswagers,Wits & Wagers,Wits & Wagers Game Show,,
+registration,Registration,Registration - turn in all Event paperwork & pick up prizes ASAP,,
+registration,Registration,"Registration Closes - See You Next Year on Aug. 4  10, 2014",,

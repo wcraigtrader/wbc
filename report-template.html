@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <style type="text/css">
+      /* body { width: 900px; } */
+      table { border-collapse: collapse; }
+      table, th, td { border: 1px solid black; }
+      td { padding: 2px 4px 2px 4px; }
+      #footer { clear:both; margin-top: 10px; border-top: thin solid black; }
+      .event { text-align: left; font-family: monospace; }
+      .eventcode { text-align: center; vertical-align: top; font-family: monospace;}
+      .eventname { text-align: left; vertical-align: top; }
+      .diff { background-color: #ff9999; }
+      .note { background-color: #ffff99; }
+    </style>
+    <title>Calendar discrepancy report</title>
+  </head>
+  <body>
+    <div id="header">
+      <h1/>
+    </div>
+    <div id="details">
+      <table/>
+    </div>
+    <div id="footer">
+      <p/>
+      <ul>
+        <li>"Can't match ..." means that one or more calendars don't provide all necessary data for events.</li>
+        <li>"Can't handle ..." means that the preview calendar is too ambiguous to parse.</li>
+        <li>"Preview has ..." means that the preview calendar has an error.</li>
+      </ul>
+    </div>
+  </body>
+</html>

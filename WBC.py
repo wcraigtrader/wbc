@@ -111,6 +111,7 @@ class WbcEvent( object ):
         self.length = None
         self.start = None
         self.datetime = None
+        self.gm = None
 
         self.type = ''
         self.rounds = 0
@@ -124,6 +125,15 @@ class WbcEvent( object ):
         # This test is for debugging purposes; string search on the spreadsheet event name
         if DEBUGGING and self.name.find( 'World At War' ) >= 0:
             pass
+
+        # Check for errors that will throw exceptions later
+        if self.gm == None:
+            LOGGER.warning( 'Event "%s" missing gm', self.event )
+            self.gm = ''
+
+        if self.duration == None:
+            LOGGER.warning( 'Event "%s" missing duration', self.event )
+            self.duration = '0'
 
         # parse the data to generate useful fields
         self.checkrounds()
@@ -213,11 +223,6 @@ class WbcEvent( object ):
         """
 
         self.code = None
-
-        # Check for errors that will throw exceptions later
-        if not self.gm:
-            LOGGER.error( 'Event %s missing gm', self )
-            return
 
         # First check for Junior events
         if self.junior:
@@ -393,7 +398,7 @@ class WbcMetadata( object ):
 
         LOGGER.debug( 'Loading tourney event codes' )
 
-        codefile = csv.DictReader( open( self.EVENTCODES ), delimiter=';' )
+        codefile = csv.DictReader( open( self.EVENTCODES ) )
         for row in codefile:
             c = row['Code'].strip()
             n = row['Name'].strip()
@@ -422,7 +427,7 @@ class WbcMetadata( object ):
 
         LOGGER.debug( 'Loading non-tourney event codes' )
 
-        codefile = csv.DictReader( open( self.OTHERCODES ), delimiter=';' )
+        codefile = csv.DictReader( open( self.OTHERCODES ) )
         for row in codefile:
             c = row['Code'].strip()
             d = row['Description'].strip()
@@ -1338,21 +1343,27 @@ class WbcYearbook( object ):
     # the convention stretching from 9 days from Saturday to the following Sunday,
     # there are two Saturdays and two Sundays, each represented by the same icon.
 
-    SITE_URL = "http://boardgamers.org/yearbkex/%spge.htm"
+    PAGE_URL = "http://boardgamers.org/yearbkex/%spge.htm"
+    INDEX_URL = "http://boardgamers.org/yearbkex%d/"
 
-    codemap = { 'MRA': 'MMA', }
+    # codemap = { 'MRA': 'MMA', }
+    codemap = { 'mma' : 'MRA' }
 
-    skip = {
-#       'CNS': "Can't match 30 minute rounds",
-#       'EIS': 'Preview has split room name',
+    notes = {
+        'CNS': "Can't match 30 minute rounds",
+        'EIS': 'Preview has split room name',
+        'ELC': "Can't match 20 minute rounds",
         'KOH': 'Preview is missing time for last round',
+        'LID': "Can't match 20 minute rounds",
         'PDT': "Can't match 30 minute drafts",
         'PGF': "Can't handle 'to conclusion'",
-#       'ROS': 'Preview has Wheatland misspelled as Wheatlamd',
+        'ROS': 'Preview has Wheatland misspelled as Wheatlamd',
+        'SLS': "Can't match 20 minute rounds",
+        'SQL': "Can't report on demos at the same time as events",
         'SSB': "Can't match 30 minute drafts",
-#       'T&T': 'Preview has H3 on Tuesday, not Thursday',
-#       'TT2': 'Preview has demo at 21, instead of combined at 19',
-#       'WAW': "Can't handle midday room switch",
+        'T&T': 'Preview has H3 on Tuesday, not Thursday',
+        'TT2': 'Preview has demo at 21, instead of combined at 19',
+        'WAW': "Can't handle midday Tuesday room switch",
     }
 
     events = {}
@@ -1640,13 +1651,20 @@ class WbcYearbook( object ):
         self.codes.sort()
 
         LOGGER.info( 'Loading Yearbook schedule' )
-        # TODO: Load from the drop-down selector on http://boardgamers.org/yearbkex${YY}/
-        for code in self.codes:
-            self.load_yearbook_page( code )
+        index = parse_url( self.INDEX_URL % ( self.meta.this_year % 100, ) )
+        if not index:
+            LOGGER.error( 'Unable to load Yearbook index' )
+
+        for option in index.findAll( 'option' ):
+            value = option['value']
+            if value == 'none' or value == 'jnrpge.htm':
+                continue
+            pagecode = value[0:3]
+            self.load_yearbook_page( pagecode )
 
         self.valid = True
 
-    def load_yearbook_page( self, code ):
+    def load_yearbook_page( self, pagecode ):
         """Load and parse the yearbook page for a single tournament
         
         The schedule table within the page is a table that has a variable number of rows:
@@ -1659,18 +1677,18 @@ class WbcYearbook( object ):
         As is the case with all of the WBC web pages, the HTML is ugly and malformed.
         """
 
-        LOGGER.info( 'Loading yearbook for %s: %s', code, self.names[ code ] )
+        LOGGER.info( 'Loading yearbook for %s', pagecode )
 
-        # Skip any codes whose pages we can't handle
-        if self.skip.has_key( code ):
-            LOGGER.warn( 'Skipping %s: %s -- %s', code, self.names[ code ], self.skip[ code ] )
-            return
+        # Map page codes to event codes
+        code = self.codemap[ pagecode ] if self.codemap.has_key( pagecode ) else pagecode.upper()
 
-        # Handle codes with the wrong URL
-        pagecode = self.codemap[ code ] if self.codemap.has_key( code ) else code
+#         # Skip any codes whose pages we can't handle
+#         if self.skip.has_key( code ):
+#             LOGGER.warn( 'Skipping %s: %s -- %s', code, self.names[ code ], self.skip[ code ] )
+#             return
 
         # Load page
-        url = self.SITE_URL % pagecode.lower()
+        url = self.PAGE_URL % pagecode
         page = parse_url( url )
         if not page:
             LOGGER.error( "Unable to load %s for %s", url, code )
@@ -1685,7 +1703,10 @@ class WbcYearbook( object ):
 class ScheduleComparer( object ):
     """This class knows enough about the different schedule sources to compare events"""
 
-    def __init__( self, s, a, y=None ):
+    TEMPLATE = 'report-template.html'
+
+    def __init__( self, metadata, s, a, y=None ):
+        self.meta = metadata
         self.schedule = s
         self.allinone = a
         self.yearbook = y
@@ -1707,8 +1728,10 @@ class ScheduleComparer( object ):
 
         if self.yearbook.valid:
             yearbook_key_set = set( self.yearbook.events.keys() )
+            yearbook_extras = yearbook_key_set - schedule_key_set
             yearbook_omited = schedule_key_set - yearbook_key_set
         else:
+            yearbook_extras = set()
             yearbook_omited = set()
 
         add_space = False
@@ -1717,6 +1740,9 @@ class ScheduleComparer( object ):
             add_space = True
         if len( allinone_omited ):
             LOGGER.error( 'Events omitted in All-in-One: %s', allinone_omited )
+            add_space = True
+        if len( yearbook_extras ):
+            LOGGER.error( 'Extra events present in Yearbook: %s', yearbook_extras )
             add_space = True
         if len( yearbook_omited ):
             LOGGER.error( 'Events omitted in Yearbook: %s', yearbook_omited )
@@ -1733,13 +1759,188 @@ class ScheduleComparer( object ):
         codes = list( code_set )
         codes.sort()
 
-        for code in codes:
-            if self.allinone.valid and self.yearbook.valid:
+        if self.allinone.valid and self.yearbook.valid:
+            self.initialize_discrepancies_report()
+            for code in codes:
                 self.check_schedules_against_each_other( code )
-            elif self.allinone.valid:
+                self.report_discrepancies( code )
+            self.write_discrepancies_report()
+        elif self.allinone.valid:
+            for code in codes:
                 self.check_schedule_against_allinone( code )
-            else:
+        else:
+            for code in codes:
                 self.check_schedule_against_yearbook( code )
+
+    def initialize_discrepancies_report( self ):
+        with open( self.TEMPLATE, "r" ) as f:
+            template = f.read()
+
+        self.parser = BeautifulSoup( template )
+
+        # Locate insertion points
+        title = self.parser.find( 'title' )
+        header = self.parser.find( 'div', { 'id' : 'header' } )
+        footer = self.parser.find( 'div', { 'id' : 'footer' } )
+
+        # Page title
+        title.insert( 0, self.parser.new_string( "WBC %s Schedule Discrepancies" % self.meta.this_year ) )
+        header.h1.insert( 0, self.parser.new_string( "WBC %s Schedule Discrepancies" % self.meta.this_year ) )
+        footer.p.insert( 0, self.parser.new_string( "Updated on %s" % self.schedule.processed.strftime( "%A, %d %B %Y %H:%M %Z" ) ) )
+
+    def report_discrepancies( self, code ):
+        """Format the discrepancies for a given tournament"""
+
+        # Find all of the matching events from each schedule
+        ai1_events = self.allinone.events[ code ]
+        ybk_events = self.yearbook.events[ code ]
+        ybk_events = [ e for e in ybk_events if e.type != 'Junior' ]
+        cal_events = self.schedule.calendars[code].subcomponents
+
+        # Find all of the unique times for any events
+        ai1_timemap = dict( [ ( e.time.astimezone( TZ ), e ) for e in ai1_events ] )
+        ybk_timemap = dict( [ ( e.time.astimezone( TZ ), e ) for e in ybk_events ] )
+        cal_timemap = dict( [ ( e['dtstart'].dt.astimezone( TZ ), e ) for e in cal_events ] )
+        time_set = set( ai1_timemap.keys() ) | set( ybk_timemap.keys() ) | set( cal_timemap.keys() )
+        time_list = list( time_set )
+        time_list.sort()
+
+        discrepancies = False
+
+        rows = []
+
+        label = self.meta.names[ code ]
+
+        # Create the first row of the discrepancies table (code, name, headers)
+        tr = self.parser.new_tag( 'tr' )
+
+        th = self.parser.new_tag( 'th' )
+        th['class'] = 'eventcode'
+        th.insert( 0, self.parser.new_string( code ) )
+        tr.insert( len( tr ), th )
+
+        th = self.parser.new_tag( 'th' )
+        th['class'] = 'eventname'
+        th.insert( 0, self.parser.new_string( label ) )
+        tr.insert( len( tr ), th )
+
+        th = self.parser.new_tag( 'th' )
+        th['colspan'] = 2
+        th.insert( 0, self.parser.new_string( 'All-in-One' ) )
+        tr.insert( len( tr ), th )
+
+        th = self.parser.new_tag( 'th' )
+        th['colspan'] = 2
+        th.insert( 0, self.parser.new_string( 'Event Preview' ) )
+        tr.insert( len( tr ), th )
+
+        th = self.parser.new_tag( 'th' )
+        th['colspan'] = 3
+        th.insert( 0, self.parser.new_string( 'Spreadsheet' ) )
+        tr.insert( len( tr ), th )
+
+        rows.append( tr )
+
+        # For each date/time combination, compare all of the events at that time
+        for t in time_list:
+
+            # Start with empty cells
+            details = [( None, ), ( None, ), ( None, ), ]
+
+            # Fill in the All-in-One event, if present
+            if ai1_timemap.has_key( t ):
+                e = ai1_timemap[ t ]
+                location = 'Terrace' if e.location == 'Pt' else e.location
+                details[0] = ( location, e.type )
+
+            # Fiil in the Preview event, if present
+            if ybk_timemap.has_key( t ):
+                e = ybk_timemap[ t ]
+                location = 'Terrace' if e.location.startswith( 'Terr' ) else e.location
+                details[1] = ( location, e.type )
+
+            # Fill in the spreadsheet event, if present
+            if cal_timemap.has_key( t ):
+                e = cal_timemap[ t ]
+                location = 'Terrace' if e['location'].startswith( 'Terr' ) else e['location']
+                summary = e['summary']
+                summary = summary[len( label ) + 1:] if summary.startswith( label ) else summary
+                seconds = e['duration'].dt.seconds
+                hours = int( seconds / 3600 )
+                minutes = int ( ( seconds - 3600 * hours ) / 60 )
+                duration = "%d:%02d" % ( hours, minutes )
+                details[2] = ( location, summary, duration )
+
+            # Calculate which calendars are different than the others
+            if details[0][0] == details[1][0] and details[1][0] == details[2][0]:
+                different = set()
+            elif details[0][0] == details[1][0]:
+                different = set( [2] )
+            elif details[0][0] == details[2][0]:
+                different = set( [1] )
+            elif details[1][0] == details[2][0]:
+                different = set( [0] )
+            else:
+                different = set( [0, 1, 2] )
+
+            discrepancies = discrepancies or len( different ) > 0
+
+            # Format a row for this time
+            tr = self.parser.new_tag( 'tr' )
+            td = self.parser.new_tag( 'td' )
+            td.insert( 0, self.parser.new_string( t.strftime( '%a %m-%d %H:%M' ) ) )
+            tr.insert( len( tr ), td )
+
+            # For each detailed event, create appropriately marked cells
+            for i in range( len( details ) ):
+                if details[i][0] == None:
+                    td = self.parser.new_tag( 'td' )
+                    td['colspan'] = 2 if i < 2 else 3
+                    if i in different:
+                        td['class'] = 'diff'
+                    tr.insert( len( tr ), td )
+                else:
+                    for j in range( len( details[i] ) ):
+                        td = self.parser.new_tag( 'td' )
+                        if i in different:
+                            td['class'] = 'diff'
+                        value = '' if details[i][j] == None else details[i][j]
+                        td.insert( 0, self.parser.new_string( value ) )
+                        tr.insert( len( tr ), td )
+
+            rows.append( tr )
+
+        # If we have notes, add them
+        if self.yearbook.notes.has_key( code ) :
+            discrepancies = True
+            tr = self.parser.new_tag( 'tr' )
+            td = self.parser.new_tag( 'td' )
+            td['colspan'] = 8
+            td['class'] = 'note'
+            td.insert( 0, self.parser.new_string( self.yearbook.notes[ code ] ) )
+            tr.insert( len( tr ), td )
+            rows.append( tr )
+
+        rows[0].next['rowspan'] = len( rows )
+
+        # Add a blank cell for
+        tr = self.parser.new_tag( 'tr' )
+        td = self.parser.new_tag( 'td' )
+        td['colspan'] = 9
+        tr.insert( len( tr ), td )
+        rows.append( tr )
+
+        # If there were discrepancies, then add the rows to the report
+        if discrepancies:
+            table = self.parser.find( 'div', { 'id' : 'details' } ).table
+            for row in rows:
+                table.insert( len( table ), row )
+
+    def write_discrepancies_report( self ):
+        path = os.path.join( self.schedule.options.output, "report.html" )
+        with open( path, "w" ) as f:
+            f.write( self.parser.prettify() )
+
 
     def check_schedules_against_each_other( self, code ):
         """Compare all of the schedules against each other, logging the differences"""
@@ -1775,11 +1976,11 @@ class ScheduleComparer( object ):
         changes = len( ac_changes ) or len( ca_changes ) or len( ay_changes ) or len( ya_changes ) or len( yc_changes ) or len( cy_changes )
 
         if changes:
-            LOGGER.error( '%s: All-in-One________________________ Yearbook__________________________ Spreadsheet_______________________ __Length Name________________', code )
+            LOGGER.error( '%s: All-in-One_____________________ Yearbook_______________________ Spreadsheet____________________ __Length Name________________', code )
             cal_other = [ '%8s %s' % ( x['duration'].dt, x['summary'] ) for x in cal_events ]
             for ai1, ybk, cal, other in izip_longest( ai1_comparison, ybk_comparison, cal_comparison, cal_other, fillvalue='' ):
                 mark = ' ' if ai1 == ybk and ybk == cal else '*'
-                LOGGER.error( '%4s %-34s %-34s %-34s %s', mark, ai1, ybk, cal, other )
+                LOGGER.error( '%4s %-31s %-31s %-31s %s', mark, ai1, ybk, cal, other )
             LOGGER.error( '' )
 
     def check_schedule_against_allinone( self, code ):
@@ -1808,11 +2009,11 @@ class ScheduleComparer( object ):
 
         # If there are any discrepancies, log them
         if len( ai1_extra ) or len( cal_extra ):
-            LOGGER.error( '%s: All-in-One________________________ Spreadsheet_______________________ __Length Name________________', code )
+            LOGGER.error( '%s: All-in-One_____________________ Spreadsheet____________________ __Length Name________________', code )
             cal_other = [ '%8s %s' % ( x['duration'].dt, x['summary'] ) for x in cal_events ]
             for tab, cal, other in izip_longest( ai1_comparison, cal_comparison, cal_other, fillvalue='' ):
                 mark = ' ' if tab == cal else '*'
-                LOGGER.error( '%4s %-34s %-34s %s', mark, tab, cal, other )
+                LOGGER.error( '%4s %-31s %-31s %s', mark, tab, cal, other )
             LOGGER.error( '' )
 
     def check_schedule_against_yearbook( self, code ):
@@ -1842,11 +2043,11 @@ class ScheduleComparer( object ):
 
         # If there are any discrepancies, log them
         if len( ybk_extra ) or len( cal_extra ):
-            LOGGER.error( '%s: Yearbook__________________________ Spreadsheet_______________________ __Length Name________________', code )
+            LOGGER.error( '%s: Yearbook_______________________ Spreadsheet____________________ __Length Name________________', code )
             cal_other = [ '%8s %s' % ( x['duration'].dt, x['summary'] ) for x in cal_events ]
             for tab, cal, other in izip_longest( ybk_comparison, cal_comparison, cal_other, fillvalue='' ):
                 mark = ' ' if tab == cal else '*'
-                LOGGER.error( '%4s %-34s %-34s %s', mark, tab, cal, other )
+                LOGGER.error( '%4s %-31s %-31s %s', mark, tab, cal, other )
             LOGGER.error( '' )
 
     def check_allinone_against_yearbook( self, code ):
@@ -1870,10 +2071,10 @@ class ScheduleComparer( object ):
 
         # If there are any discrepancies, log them
         if len( ybk_extra ) or len( ai1_extra ):
-            LOGGER.error( '%s: All-in-One________________________ Yearbook__________________________', code )
+            LOGGER.error( '%s: All-in-One_____________________ Yearbook_______________________', code )
             for tab, cal in izip_longest( ai1_comparison, ybk_comparison, fillvalue='' ):
                 mark = ' ' if tab == cal else '*'
-                LOGGER.error( '%4s %-34s %-34s', mark, tab, cal )
+                LOGGER.error( '%4s %-31s %-31s', mark, tab, cal )
             LOGGER.error( '' )
 
     @staticmethod
@@ -1883,7 +2084,7 @@ class ScheduleComparer( object ):
         start_time = ev.time.astimezone( TZ )
         location = ev.location
         location = 'Terrace' if location == 'Pt' else location
-        return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M:%S' ), location )
+        return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M' ), location )
 
     @staticmethod
     def ybk_date_loc( ev ):
@@ -1892,7 +2093,7 @@ class ScheduleComparer( object ):
         start_time = ev.time.astimezone( TZ )
         location = ev.location
         location = 'Terrace' if location.startswith( 'Terr' ) else location
-        return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M:%S' ), location )
+        return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M' ), location )
 
     @staticmethod
     def cal_date_loc( sc ):
@@ -1901,7 +2102,7 @@ class ScheduleComparer( object ):
         start_time = sc['dtstart'].dt.astimezone( TZ )
         location = sc['location']
         location = 'Terrace' if location.startswith( 'Terrace' ) else location
-        return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M:%S' ), location )
+        return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M' ), location )
 
 #----- Real work happens here ------------------------------------------------
 
@@ -1935,7 +2136,7 @@ if __name__ == '__main__':
     wbc_yearbook = WbcYearbook( meta, names )
 
     # Compare the event calendars with the WBC All-in-One schedule and the yearbook
-    comparer = ScheduleComparer( wbc_schedule, wbc_allinone, wbc_yearbook )
+    comparer = ScheduleComparer( meta, wbc_schedule, wbc_allinone, wbc_yearbook )
     comparer.verify_event_calendars()
 
     LOGGER.info( "Done." )
