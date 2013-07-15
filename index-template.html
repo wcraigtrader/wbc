@@ -3,24 +3,34 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <style type="text/css">
-      body { width: 900px; }
-      #left  { width: 598px; float: left; }
+      body { width: 980px; }
+      #left  { width: 670px; float: left; }
       #right { width: 298px; float: right; }
       #footer { clear:both; margin-top: 10px; border-top: thin solid black; }
-      .eventcode { text-align: right; font-family: monospace; font-weight: bold; }
-      .eventlink { text-align: left; }      
+      .eventcode { vertical-align: text-bottom; text-align: right; font-family: monospace; font-weight: bold; }
+      .eventlink { vertical-align: text-bottom; text-align: left; font-family: sans-serif; }      
     </style>
+    <script language="javascript">
+      function webcal( filename ) {
+        var x = window.location + filename;
+        x = x.replace( 'http:', 'webcal:' )
+        x = x.replace( '#', '' )
+        window.open( x );
+      }
+    </script>
     <title/>
   </head>
   <body>
     <div id="header">
       <h1/>
       <p>These calendars are provided on a 'best effort' basis, but are <b>NOT</b> the 
-      <a href="http://boardgamers.org/wbc/schedule.htm">official schedule</a>.</p>
-      <p>The calendars will be updated as the schedule is updated, and as the program
+      <a href="http://boardgamers.org/wbc/schedule.htm">official schedule</a>.
+         The calendars will be updated as the schedule is updated, and as the program
          that generates the calendars from the schedule is improved.
          Please report any errors to <a href="mailto:wbc@trader.name">wbc@trader.name</a>.</p>
-      <p>Download the scripts yourself at <a href="https://github.com/wcraigtrader/wbc">GitHub</a></p>
+      <p>If your browser handles 'webcal' files, click the <img src="ical.gif"/> button, 
+         otherwise copy the link from event name into your calendar program.</p>
+      <p>Download the scripts yourself at <a href="https://github.com/wcraigtrader/wbc">GitHub</a>.</p>
     </div>
     <div id="left">
       <div id="tournaments"></div>

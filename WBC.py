@@ -39,6 +39,7 @@ import logging
 import os
 import pytz
 import re
+import shutil
 import unicodedata
 import urllib2
 import xlrd
@@ -941,6 +942,17 @@ class WbcSchedule( object ):
         """
         LOGGER.info( "Saving calendars..." )
 
+        # Remote any existing destination directory
+        if os.path.exists( self.options.output ):
+            shutil.rmtree( self.options.output )
+
+        # Create the destination directory
+        os.makedirs( self.options.output )
+
+        # Copy needed files to the destination
+        if os.path.exists( 'ical.gif' ):
+            shutil.copy( 'ical.gif', self.options.output )
+
         # For all of the event calendars
         for code, calendar in self.calendars.items():
 
@@ -1035,14 +1047,28 @@ class WbcSchedule( object ):
             span = parser.new_tag( 'span' )
             span['class'] = 'eventcode'
             span.insert( 0, parser.new_string( escape( key ) + ': ' ) )
+            td.insert( len( td ), span )
+
+            filename = cls.safe_ics_filename( key )
+
             a = parser.new_tag( 'a' )
             a['class'] = 'eventlink'
-            a['href'] = cls.safe_ics_filename( key )
+            a['href'] = '#'
+            a['onclick'] = "webcal('%s');" % filename
+            img = parser.new_tag( 'img' )
+            img['src'] = 'ical.gif'
+            a.insert( len( a ), img )
+            td.insert( len( td ), a )
+
+            a = parser.new_tag( 'a' )
+            a['class'] = 'eventlink'
+            a['href'] = filename
             a.insert( 0, parser.new_string( escape( "%s" % label ) ) )
-            td.insert( 0, span )
-            td.insert( 1, a )
+            td.insert( len( td ), a )
+
+            td.insert( len( td ), a )
         else:
-            td.insert( 0, parser.new_string( '&nbsp;' ) )
+            td.insert( len( td ) , parser.new_string( '&nbsp;' ) )
         return td
 
     @staticmethod
@@ -1082,9 +1108,24 @@ class WbcSchedule( object ):
         """Create the HTML fragment for a single calendar in a list"""
 
         li = parser.new_tag( 'li' )
-        li.insert( 0, parser.new_tag( 'a' ) )
-        li.a['href'] = cls.safe_ics_filename( key )
-        li.a.insert( 0, parser.new_string( escape( "%s" % label ) ) )
+
+        filename = cls.safe_ics_filename( key )
+
+        a = parser.new_tag( 'a' )
+        a['class'] = 'eventlink'
+        a['href'] = '#'
+        a['onclick'] = "webcal('%s');" % filename
+        img = parser.new_tag( 'img' )
+        img['src'] = 'ical.gif'
+        a.insert( len( a ), img )
+        li.insert( len( li ), a )
+
+        a = parser.new_tag( 'a' )
+        a['class'] = 'eventlink'
+        a['href'] = filename
+        a.insert( 0, parser.new_string( escape( "%s" % label ) ) )
+        li.insert( len( li ), a )
+
         list_tag.insert( len( list_tag ), li )
 
     @classmethod
