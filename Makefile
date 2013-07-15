@@ -17,14 +17,14 @@ all:	build
 
 .PHONY:	build clean compare fetch prerequisites push backup
 
-build:	clean
+build:	
 	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD)
 
 dryrun:
 	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD) -n
 
-publish:	build
-	rsync -v -rlD --no-times --delete $(BUILD)/ $(REMOTE)/$(YEAR)/
+publish:
+	rsync -v -rclD --delete $(BUILD)/ $(REMOTE)/$(YEAR)/
 
 clean:
 	rm -rf $(BUILD)
