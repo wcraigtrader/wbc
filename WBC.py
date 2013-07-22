@@ -1801,18 +1801,10 @@ class ScheduleComparer( object ):
         codes = list( code_set )
         codes.sort()
 
-        if self.allinone.valid and self.yearbook.valid:
-            self.initialize_discrepancies_report()
-            for code in codes:
-                self.check_schedules_against_each_other( code )
-                self.report_discrepancies( code )
-            self.write_discrepancies_report()
-        elif self.allinone.valid:
-            for code in codes:
-                self.check_schedule_against_allinone( code )
-        else:
-            for code in codes:
-                self.check_schedule_against_yearbook( code )
+        self.initialize_discrepancies_report()
+        for code in codes:
+            self.report_discrepancies( code )
+        self.write_discrepancies_report()
 
     def initialize_discrepancies_report( self ):
         """Initial discrepancies report from template"""
@@ -1836,8 +1828,8 @@ class ScheduleComparer( object ):
         """Format the discrepancies for a given tournament"""
 
         # Find all of the matching events from each schedule
-        ai1_events = self.allinone.events[ code ]
-        ybk_events = self.yearbook.events[ code ]
+        ai1_events = self.allinone.events[ code ] if self.allinone.valid else []
+        ybk_events = self.yearbook.events[ code ] if self.yearbook.valid else []
         ybk_events = [ e for e in ybk_events if e.type != 'Junior' ]
         cal_events = self.schedule.calendars[code].subcomponents
 
@@ -1889,7 +1881,7 @@ class ScheduleComparer( object ):
             discrepancies = discrepancies or result
 
         # If we have notes, add them
-        if self.yearbook.notes.has_key( code ) :
+        if self.yearbook.valid and self.yearbook.notes.has_key( code ) :
             discrepancies = True
             tr = self.parser.new_tag( 'tr' )
             td = self.parser.new_tag( 'td' )
@@ -1923,15 +1915,17 @@ class ScheduleComparer( object ):
         th.insert( 0, self.parser.new_string( label ) )
         tr.insert( len( tr ), th )
 
-        th = self.parser.new_tag( 'th' )
-        th['colspan'] = 2
-        th.insert( 0, self.parser.new_string( 'All-in-One' ) )
-        tr.insert( len( tr ), th )
+        if self.allinone.valid:
+            th = self.parser.new_tag( 'th' )
+            th['colspan'] = 2
+            th.insert( 0, self.parser.new_string( 'All-in-One' ) )
+            tr.insert( len( tr ), th )
 
-        th = self.parser.new_tag( 'th' )
-        th['colspan'] = 2
-        th.insert( 0, self.parser.new_string( 'Event Preview' ) )
-        tr.insert( len( tr ), th )
+        if self.yearbook.valid:
+            th = self.parser.new_tag( 'th' )
+            th['colspan'] = 2
+            th.insert( 0, self.parser.new_string( 'Event Preview' ) )
+            tr.insert( len( tr ), th )
 
         th = self.parser.new_tag( 'th' )
         th['colspan'] = 3
@@ -1943,8 +1937,21 @@ class ScheduleComparer( object ):
     def add_discrepancy_row( self, rows, starting_time, details ):
         """Format a discrepancy row for this time"""
 
+        if not self.yearbook.valid:
+            del details[1]
+
+        if not self.allinone.valid:
+            del details[0]
+
         # Calculate which calendars are different than the others
-        if details[0][0] == details[1][0] and details[1][0] == details[2][0]:
+        if len( details ) == 1:
+            differences = set()
+        elif len( details ) == 2:
+            if details[0][0] == details[1][0]:
+                differences = set()
+            else:
+                differences = set( [0, 1 ] )
+        elif details[0][0] == details[1][0] and details[1][0] == details[2][0]:
             differences = set()
         elif details[0][0] == details[1][0]:
             differences = set( [2] )
@@ -1967,7 +1974,7 @@ class ScheduleComparer( object ):
         for i in range( len( details ) ):
             if details[i][0] == None:
                 td = self.parser.new_tag( 'td' )
-                td['colspan'] = 2 if i < 2 else 3
+                td['colspan'] = 2 if i < len( details ) - 1 else 3
                 if i in differences:
                     td['class'] = 'diff'
                 tr.insert( len( tr ), td )
