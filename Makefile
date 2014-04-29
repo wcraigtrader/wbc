@@ -4,8 +4,8 @@ SITE=http://boardgamers.org/downloads/
 SCHEDULE=schedule
 YEAR=2013
 EXT=.xlsx
-# REMOTE=trader.name:/data/web/trader/wbc
-REMOTE=craigtrader@trader.name:trader.name/wbc
+REMOTE=trader.name:/data/web/trader/wbc
+# REMOTE=craigtrader@trader.name:trader.name/wbc
 
 SPREADSHEET=$(SCHEDULE)$(YEAR)$(EXT)
 OLD_SPREADSHEET=$(SCHEDULE)$(YEAR).old

@@ -86,7 +86,10 @@ def process_options( metadata ):
     parser.add_option( "-o", "--output", dest="output", metavar="DIR", default="build", help="Directory for results" )
     parser.add_option( "-n", "--dry-run", dest="write_files", action="store_false", default=True )
     parser.add_option( "-v", "--verbose", dest="verbose", action="store_true", default=False )
+    parser.add_option( "-f", "--full-report", dest="fullreport", action="store_true", default=False )
     options, dummy_args = parser.parse_args()
+
+    options.year = int( options.year )
 
     return options
 
@@ -1256,8 +1259,9 @@ class WbcAllInOne( object ):
         def __str__( self ):
             return '%s %s %s in %s at %s' % ( self.code, self.name, self.type, self.location, self.time )
 
-    def __init__( self, metadata ):
+    def __init__( self, metadata, options ):
         self.meta = metadata
+        self.options = options
         self.page = None
 
         self.load_table()
@@ -1286,7 +1290,7 @@ class WbcAllInOne( object ):
             except:
                 year = 2013
 
-        if year != meta.this_year:
+        if year != self.meta.this_year and year != self.options.year:
             LOGGER.error( "All-in-one schedule for %d is out of date", year )
 
             return
@@ -1684,15 +1688,20 @@ class WbcYearbook( object ):
                 event_type = self.icon_meanings[ event_type ]
             return event_type
 
-    def __init__( self, metadata, event_names ):
+    def __init__( self, metadata, options, event_names ):
         self.meta = metadata
+        self.options = options
 
         self.names = event_names  # mapping of codes to event names
         self.codes = event_names.keys()
         self.codes.sort()
 
+        self.yy = self.options.year % 100
+        if self.options.year != self.meta.this_year:
+            self.PAGE_URL = "http://boardgamers.org/yearbkex%d/%%spge.htm" % ( self.yy, )
+
         LOGGER.info( 'Loading Yearbook schedule' )
-        index = parse_url( self.INDEX_URL % ( self.meta.this_year % 100, ) )
+        index = parse_url( self.INDEX_URL % ( self.yy, ) )
         if not index:
             LOGGER.error( 'Unable to load Yearbook index' )
 
@@ -1732,7 +1741,7 @@ class WbcYearbook( object ):
         url = self.PAGE_URL % pagecode
         page = parse_url( url )
         if not page:
-            LOGGER.error( "Unable to load %s for %s", url, code )
+            LOGGER.error( "Unable to load %s for [%s]", url, code )
             return
 
         t = WbcYearbook.Tourney( code, self.names[ code ], page, self.meta.first_day )
@@ -1746,7 +1755,8 @@ class ScheduleComparer( object ):
 
     TEMPLATE = 'report-template.html'
 
-    def __init__( self, metadata, s, a, y=None ):
+    def __init__( self, metadata, options, s, a, y=None ):
+        self.options = options
         self.meta = metadata
         self.schedule = s
         self.allinone = a
@@ -1820,8 +1830,13 @@ class ScheduleComparer( object ):
         footer = self.parser.find( 'div', { 'id' : 'footer' } )
 
         # Page title
-        title.insert( 0, self.parser.new_string( "WBC %s Schedule Discrepancies" % self.meta.this_year ) )
-        header.h1.insert( 0, self.parser.new_string( "WBC %s Schedule Discrepancies" % self.meta.this_year ) )
+        if self.options.fullreport:
+            text = "WBC %s Schedule Details" % self.options.year
+        else:
+            text = "WBC %s Schedule Discrepancies" % self.options.year
+
+        title.insert( 0, self.parser.new_string( text ) )
+        header.h1.insert( 0, self.parser.new_string( text ) )
         footer.p.insert( 0, self.parser.new_string( "Updated on %s" % self.schedule.processed.strftime( "%A, %d %B %Y %H:%M %Z" ) ) )
 
     def report_discrepancies( self, code ):
@@ -1895,7 +1910,7 @@ class ScheduleComparer( object ):
         rows[0].next['rowspan'] = len( rows )
 
         # If there were discrepancies, then add the rows to the report
-        if discrepancies:
+        if discrepancies or self.options.fullreport:
             self.add_discrepancies_to_report( rows )
 
     def create_discrepancy_header( self, rows, code ):
@@ -2201,14 +2216,14 @@ if __name__ == '__main__':
     wbc_schedule.report_unprocessed_events()
 
     # Parse the WBC All-in-One schedule
-    wbc_allinone = WbcAllInOne( meta )
+    wbc_allinone = WbcAllInOne( meta, opts )
 
     # Parse the WBC Yearbook
     names = dict( [( key_code, val_name ) for key_code, val_name in meta.names.items() if key_code in wbc_schedule.current_tourneys ] )
-    wbc_yearbook = WbcYearbook( meta, names )
+    wbc_yearbook = WbcYearbook( meta, opts, names )
 
     # Compare the event calendars with the WBC All-in-One schedule and the yearbook
-    comparer = ScheduleComparer( meta, wbc_schedule, wbc_allinone, wbc_yearbook )
+    comparer = ScheduleComparer( meta, opts, wbc_schedule, wbc_allinone, wbc_yearbook )
     comparer.verify_event_calendars()
 
     LOGGER.info( "Done." )
