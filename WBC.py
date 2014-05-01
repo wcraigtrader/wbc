@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-#----- Copyright (c) 2010-2013 by W. Craig Trader ---------------------------------
+#----- Copyright (c) 2010-2014 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -31,6 +31,7 @@
 from bs4 import BeautifulSoup, Tag, NavigableString
 from cgi import escape
 from datetime import date, datetime, time, timedelta
+from functools import total_ordering
 from icalendar import Calendar, Event
 from itertools import izip_longest
 from optparse import OptionParser
@@ -95,11 +96,14 @@ def process_options( metadata ):
 
 #----- WBC Event -------------------------------------------------------------
 
+@total_ordering
 class WbcEvent( object ):
     """
     A WbcEvent encapsulates information about a single schedule line from the 
-    WBC schedule spreadsheet.
+    WBC schedule spreadsheet. This line may result in a dozen or more calendar events.
     """
+
+    FIELDS = [ 'Date', 'Time', 'Event', 'PRIZE', 'CLASS', 'Format', 'Duration', 'Continuous', 'GM', 'Location', 'Code' ]
 
     def __init__( self, schedule, line, *args ):
 
@@ -148,6 +152,16 @@ class WbcEvent( object ):
         self.checkduration()
         self.checkcodes()
 
+    @property
+    def __key__( self ):
+        return ( self.code, self.datetime, self.name )
+
+    def __eq__( self, other ):
+        return ( self.__key__ == other.__key__ )
+
+    def __lt__( self, other ):
+        return ( self.__key__ < other.__key__ )
+
     def __setattr__( self, key, value ):
         k = key.strip().lower()
         self.__dict__[ k ] = value
@@ -162,6 +176,13 @@ class WbcEvent( object ):
     def __repr__( self ):
         return "%s @ %s %s on %s" % ( self.event, self.date, self.time, self.line )
 #        return repr( self.__dict__ )
+
+    @property
+    def row( self ):
+        row = dict( [ ( k, getattr( self, k ) ) for k in self.FIELDS ] )
+        row['Date'] = self.date.strftime( '%Y-%m-%d' )
+        row['Continuous'] = 'Y' if row['Continuous'] else ''
+        return row
 
     def checkrounds( self ):
         """Check the current state of the event name to see if it describes a Heat or Round number"""
@@ -302,7 +323,7 @@ class WbcCsvEvent( WbcEvent ):
 #----- WBC Event (read from Excel spreadsheet) -------------------------------
 
 class WbcXlsEvent( WbcEvent ):
-    """This subclass of WbcEvent is used to parse XLS-formatted schedule data"""
+    """This subclass of WbcEvent is used to parse Excel-formatted schedule data"""
 
     def __init__( self, *args ):
         WbcEvent.__init__( self, *args )
@@ -560,7 +581,7 @@ class WbcSchedule( object ):
 
         for i in range( 1, sheet.nrows ):
             if self.options.verbose:
-                print 'Reading row %d ...' % ( i + 1 )
+                LOGGER.debug( 'Reading row %d' % ( i + 1 ) )
             event = WbcXlsEvent( self, i + 1, header, sheet.row( i ), book.datemode )
             self.categorize_event( event )
 
@@ -974,6 +995,24 @@ class WbcSchedule( object ):
         for day, calendar in self.dailies.items():
             self.write_calendar_file( calendar, day )
 
+    def write_spreadsheet( self ):
+        """
+        Write all of the calendar entries back out, in CSV format, with improvements
+        """
+        LOGGER.info( 'Writing spreadsheet...' )
+
+        data = []
+        for k in self.events.keys():
+            data = data + self.events[k]
+        data = data + self.unmatched
+        data.sort()
+
+
+        with open( os.path.join( self.options.output, "schedule.csv" ), "w" ) as f:
+            writer = csv.DictWriter( f, WbcEvent.FIELDS, extrasaction='ignore' )
+            writer.writeheader()
+            writer.writerows( [ e.row for e in data ] )
+
     def write_index_page( self ):
         """
         Using an HTML Template, create an index page that lists 
@@ -1218,7 +1257,7 @@ class WbcAllInOne( object ):
         <FONT SIZE=-1>Lampeter</FONT>
         </td><td>
         &nbsp</td><td>
-        &nbsp
+        &nbsp</tr>
         
     This is, frankly, horrible HTML.  But at least it's consistent, year-to-year, 
     and BeautifulSoup can parse it. 
@@ -2211,6 +2250,9 @@ if __name__ == '__main__':
 
         # Build the HTML index.
         wbc_schedule.write_index_page()
+
+    # Output an improved copy of the input spreadsheet, in CSV
+    wbc_schedule.write_spreadsheet()
 
     # Print the unmatched events for rework.
     wbc_schedule.report_unprocessed_events()
