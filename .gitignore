@@ -1,0 +1,6 @@
+.project
+.pydevproject
+python27
+python33
+*.pyc
+.~*#

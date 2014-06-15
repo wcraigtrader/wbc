@@ -2,7 +2,7 @@
 
 SITE=http://boardgamers.org/downloads/
 SCHEDULE=schedule
-YEAR=2013
+YEAR=2014
 EXT=.xlsx
 REMOTE=trader.name:/data/web/trader/wbc
 # REMOTE=craigtrader@trader.name:trader.name/wbc
@@ -11,14 +11,14 @@ SPREADSHEET=$(SCHEDULE)$(YEAR)$(EXT)
 OLD_SPREADSHEET=$(SCHEDULE)$(YEAR).old
 NEW_SPREADSHEET=$(SCHEDULE)$(YEAR).new
 
-BUILD=build
+BUILD=site
 
 all:	build
 
 .PHONY:	build clean compare fetch prerequisites push backup
 
 build:	
-	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD)
+	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD) -y $(YEAR)
 
 dryrun:
 	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD) -n
@@ -51,4 +51,3 @@ prerequisites:
 	sudo pip install --upgrade icalendar
 	sudo pip install --upgrade beautifulsoup4
 	sudo pip install --upgrade xlrd
-	# sudo pip install --upgrade lxml

@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python2.7
 
 #----- Copyright (c) 2010-2014 by W. Craig Trader ---------------------------------
 #
@@ -21,31 +21,37 @@
 #
 # sudo apt-get install pip
 # sudo pip install pytz
-# sudo pip install BeautifulSoup
+# sudo pip install beautifulsoup4
 # sudo pip install icalendar
 # sudo pip install xlrd
+#
+#
 
 # xxlint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0612,W0621,W0702,W0703
 # pylint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0702
 
-from bs4 import BeautifulSoup, Tag, NavigableString
 from cgi import escape
 from datetime import date, datetime, time, timedelta
 from functools import total_ordering
-from icalendar import Calendar, Event
 from itertools import izip_longest
 from optparse import OptionParser
+
 import csv
+import codecs
 import logging
 import os
-import pytz
 import re
 import shutil
 import unicodedata
 import urllib2
+
+from bs4 import BeautifulSoup, Tag, NavigableString
+from icalendar import Calendar, Event
+
+import pytz
 import xlrd
 
-logging.basicConfig( level=logging.WARN )
+logging.basicConfig( level=logging.INFO )
 LOGGER = logging.getLogger( 'WBC' )
 DEBUGGING = True
 
@@ -97,9 +103,9 @@ def process_options( metadata ):
 #----- WBC Event -------------------------------------------------------------
 
 @total_ordering
-class WbcEvent( object ):
+class WbcRow( object ):
     """
-    A WbcEvent encapsulates information about a single schedule line from the 
+    A WbcRow encapsulates information about a single schedule line from the 
     WBC schedule spreadsheet. This line may result in a dozen or more calendar events.
     """
 
@@ -131,7 +137,7 @@ class WbcEvent( object ):
         self.readrow( *args )
 
         # This test is for debugging purposes; string search on the spreadsheet event name
-        if DEBUGGING and self.name.find( 'World At War' ) >= 0:
+        if DEBUGGING and self.name.find( 'Wits & Wagers' ) >= 0:
             pass
 
         # Check for errors that will throw exceptions later
@@ -142,6 +148,9 @@ class WbcEvent( object ):
         if self.duration == None:
             LOGGER.warning( 'Event "%s" missing duration', self.event )
             self.duration = '0'
+
+        if self.name.endswith( 'Final' ):
+            self.name = self.name[:-4]
 
         # parse the data to generate useful fields
         self.checkrounds()
@@ -187,10 +196,11 @@ class WbcEvent( object ):
     def checkrounds( self ):
         """Check the current state of the event name to see if it describes a Heat or Round number"""
 
-        match = re.search( r'([DHR]?)(\d+)/(\d+)$', self.name )
+        match = re.search( r'([DHR]?)(\d+)[-/](\d+)$', self.name )
         if match:
             ( t, n, m ) = match.groups()
             text = match.group( 0 )
+            text = text.replace( '-', '/' )
             if t == "R":
                 self.start = int( n )
                 self.rounds = int( m )
@@ -283,11 +293,11 @@ class WbcEvent( object ):
 
 #----- WBC Event (read from CSV spreadsheet) ---------------------------------
 
-class WbcCsvEvent( WbcEvent ):
-    """This subclass of WbcEvent is used to parse CSV-formatted schedule data"""
+class WbcCsvRow( WbcRow ):
+    """This subclass of WbcRow is used to parse CSV-formatted schedule data"""
 
     def __init__( self, *args ):
-        WbcEvent.__init__( self, *args )
+        WbcRow.__init__( self, *args )
 
     def readrow( self, *args ):
         """Custom implementation of readrow to handle CSV-formatted rows"""
@@ -322,11 +332,11 @@ class WbcCsvEvent( WbcEvent ):
 
 #----- WBC Event (read from Excel spreadsheet) -------------------------------
 
-class WbcXlsEvent( WbcEvent ):
-    """This subclass of WbcEvent is used to parse Excel-formatted schedule data"""
+class WbcXlsRow( WbcRow ):
+    """This subclass of WbcRow is used to parse Excel-formatted schedule data"""
 
     def __init__( self, *args ):
-        WbcEvent.__init__( self, *args )
+        WbcRow.__init__( self, *args )
 
     def readrow( self, *args ):
         """Custom implementation of readrow to handle XLS-formatted rows"""
@@ -555,8 +565,8 @@ class WbcSchedule( object ):
             eventfile = csv.DictReader( f , delimiter=';' )
             i = 2
             for row in eventfile:
-                event = WbcCsvEvent( self, i, row )
-                self.categorize_event( event )
+                event_row = WbcCsvRow( self, i, row )
+                self.categorize_row( event_row )
                 i = i + 1
 
     def scan_xls_file( self, filename ):
@@ -582,22 +592,22 @@ class WbcSchedule( object ):
         for i in range( 1, sheet.nrows ):
             if self.options.verbose:
                 LOGGER.debug( 'Reading row %d' % ( i + 1 ) )
-            event = WbcXlsEvent( self, i + 1, header, sheet.row( i ), book.datemode )
-            self.categorize_event( event )
+            event_row = WbcXlsRow( self, i + 1, header, sheet.row( i ), book.datemode )
+            self.categorize_row( event_row )
 
-    def categorize_event( self, event ):
+    def categorize_row( self, row ):
         """
-        Assign a spreadsheet entry to a matching event code.
+        Assign a spreadsheet entry to a matching row code.
         """
-        if event.code:
-            if self.events.has_key( event.code ):
-                self.events[event.code].append( event )
+        if row.code:
+            if self.events.has_key( row.code ):
+                self.events[row.code].append( row )
             else:
-                self.events[event.code] = [ event ]
+                self.events[row.code] = [ row ]
         else:
-            self.unmatched.append( event )
+            self.unmatched.append( row )
 
-        self.meta.check_date( event.date )
+        self.meta.check_date( row.date )
 
     def create_wbc_calendars( self ):
         """
@@ -732,12 +742,13 @@ class WbcSchedule( object ):
         
         In theory, WBC runs from 9am to midnight.  Thus rounds that would 
         otherwise begin or end after midnight should be postponed until 
-        9am the next morning.  There are two types of exceptions to this
+        9am the next morning.  There are three types of exceptions to this
         rule:  
         
         (1) some events run their finals directly after the semi-finals conclude,
             which can cause the final to run past midnight.
         (2) some events are scheduled to run multiple rounds past midnight.
+        (3) some events are variable -- starting a 6 hour round at 9pm is OK, but not at 10pm
         """
 
         # Calculate midnight, relative to the last event's start time
@@ -750,8 +761,13 @@ class WbcSchedule( object ):
         next_start = start + entry.length
         next_end = next_start + entry.length
 
+        late_part = 0 if next_end <= midnight else ( next_end - midnight ).total_seconds() / entry.length.total_seconds()
+
         # Lookup the override code for this event
         playlate = self.meta.playlate.get( entry.code, None )
+
+        if playlate and late_part:
+            LOGGER.warn( "%s: %4s, Start: %s, End: %s, Partial: %5.2f, %s", entry.code, playlate, next_start, next_end, late_part, late_part <= 0.5 )
 
         if playlate == 'all':
             pass  # always
@@ -759,7 +775,7 @@ class WbcSchedule( object ):
             next_start = tomorrow
         elif next_end <= midnight:
             pass
-        elif playlate == 'once':
+        elif playlate == 'once' and late_part <= 0.5:
             pass
         else:
             next_start = tomorrow
@@ -1009,7 +1025,7 @@ class WbcSchedule( object ):
 
 
         with open( os.path.join( self.options.output, "schedule.csv" ), "w" ) as f:
-            writer = csv.DictWriter( f, WbcEvent.FIELDS, extrasaction='ignore' )
+            writer = csv.DictWriter( f, WbcRow.FIELDS, extrasaction='ignore' )
             writer.writeheader()
             writer.writerows( [ e.row for e in data ] )
 
@@ -1057,7 +1073,7 @@ class WbcSchedule( object ):
         specials['tournaments'] = self.tournaments
         self.render_calendar_list( parser, 'special', 'Special Calendars', specials )
 
-        with open( os.path.join( self.options.output, "index.html" ), "w" ) as f:
+        with codecs.open( os.path.join( self.options.output, 'index.html' ), 'w', 'utf-8' ) as f:
             f.write( parser.prettify() )
 
     @classmethod
@@ -1202,9 +1218,9 @@ class WbcSchedule( object ):
         """
         same = str( e1['dtstart'] ) == str( e2['dtstart'] )
         same &= str( e1['duration'] ) == str( e2['duration'] )
-        same |= str( e1['summary'] ) == str( e2['summary'] )
+        same |= unicode( e1['summary'] ) == unicode( e2['summary'] )
         if altname:
-            same |= str( e1['summary'] ) == altname
+            same |= unicode( e1['summary'] ) == unicode( altname )
         return same
 
     @staticmethod
@@ -1432,23 +1448,36 @@ class WbcYearbook( object ):
     INDEX_URL = "http://boardgamers.org/yearbkex%d/"
 
     # codemap = { 'MRA': 'MMA', }
-    codemap = { 'mma' : 'MRA' }
+    # codemap = { 'mma' : 'MRA' }
+    codemap = { 'kot' : 'KOT' }
 
+    # TODO: Preview codes for messages
     notes = {
         'CNS': "Can't match 30 minute rounds",
-        'EIS': 'Preview has split room name',
         'ELC': "Can't match 20 minute rounds",
-        'KOH': 'Preview is missing time for last round',
         'LID': "Can't match 20 minute rounds",
         'PDT': "Can't match 30 minute drafts",
-        'PGF': "Can't handle 'to conclusion'",
-        'ROS': 'Preview has Wheatland misspelled as Wheatlamd',
         'SLS': "Can't match 20 minute rounds",
-        'SQL': "Can't report on demos at the same time as events",
         'SSB': "Can't match 30 minute drafts",
-        'T&T': 'Preview has H3 on Tuesday, not Thursday',
-        'TT2': 'Preview has demo at 21, instead of combined at 19',
-        'WAW': "Can't handle midday Tuesday room switch",
+#       'WAW': "Can't handle midday Tuesday room switch",
+
+        'ADV': "Preview shows 1 hour for SF and F, not 2 hours per spreadsheet and pocket schedule",
+        'BAR': "Pocket schedule shows R1@8/8:9, R2@8/8:14, R3@8/8:19, SF@8/9:9, F@8/9:14",
+        'KFE': "Pocket schedule shows R1@8/6:9, R2@8/6:16, SF@8/7:9, F@8/7:16",
+        'KOT': "Can't handle 'to conclusion'",
+        'LST': "Can't handle 'until conclusion'",
+        'MED': "Preview shows heats taking place after SF/F",
+        'PGF': "Can't handle 'to conclusion'",
+        'RFG': "Should only have 1 demo",
+        'STA': "Conestoga is misspelled as Coonestoga",
+
+
+#       'EIS': 'Preview has split room name',
+#       'KOH': 'Preview is missing time for last round',
+#       'ROS': 'Preview has Wheatland misspelled as Wheatlamd',
+#       'SQL': "Can't report on demos at the same time as events",
+#       'T&T': 'Preview has H3 on Tuesday, not Thursday',
+#       'TT2': 'Preview has demo at 21, instead of combined at 19',
     }
 
     events = {}
@@ -1477,12 +1506,23 @@ class WbcYearbook( object ):
         def __str__( self ):
             return '%s %s %s in %s at %s' % ( self.code, self.name, self.type, self.location, self.time )
 
+    class Token( object ):
+        """Simple data object for breaking descriptions into parseable tokens"""
+
+        type = None
+        value = None
+
+        def __init__( self, type, value ):
+            self.type = type
+            self.value = value
+
     class Tourney( object ):
         """Class to organize events for a Yearbook tournament."""
 
         icon_meanings = {
             'stadium' : 'dummy',
-            'demo' : 'Demo', 'demoweb' : 'Demo', 'jrwebicn': 'Junior', 'mulligan' : 'Mulligan', 'semi' : 'SF', 'final' : 'F',
+            'demo' : 'Demo', 'demoweb' : 'Demo', 'demo_folder_transparent' : 'Demo',
+            'jrwebicn': 'Junior', 'mulligan' : 'Mulligan', 'semi' : 'SF', 'final' : 'F',
             'heat1' : 'H1', 'heat2' : 'H2', 'heat3' : 'H3', 'heat4' : 'H4',
             'rd1' : 'R1', 'rd2' : 'R2', 'rd3' : 'R3', 'rd4' : 'R4', 'rd5' : 'R5', 'rd6' : 'R6',
             'sat2' : 'SAT', 'sun2' : 'SUN', 'mon2' : 'MON', 'tue2' : 'TUE', 'wed2' : 'WED', 'thu2' : 'THU', 'fri2' : 'FRI',
@@ -1493,7 +1533,13 @@ class WbcYearbook( object ):
         days = { 'SAT' : 0, 'SUN' : 1, 'MON' : 2, 'TUE' : 3, 'WED' : 4, 'THU' : 5, 'FRI' : 6 }
         reverse = { 0 : 'SAT', 1 : 'SUN', 2 : 'MON', 3 : 'TUE', 4 : 'WED', 5 : 'THU', 6 : 'FRI' }
 
-        dump = [ ]  # List of codes to dump for debugging
+        # TODO: Preview codes to debug
+        dump = [
+            'AFK', 'AGE', 'B&O', 'BBS', 'BRI', 'BRS', 'BWD', 'CIS', 'CQT', 'FMR',
+            'GBG', 'GBM', 'GSR', 'HWD', 'IVH', 'KRM', 'LHV', 'MFD', 'MMA', 'MOV',
+            'PGD', 'POF', 'PRO', 'RFG', 'RRY', 'SFR', 'SMW', 'SPG', 'SPY', 'SSB',
+            'STA', 'T&T', 'TRC', 'VSD', 'WAT', 'WPS', 'WSM',
+        ]  # List of codes to dump for parser debugging
 
         default_room = None
         shift_room = None
@@ -1560,20 +1606,22 @@ class WbcYearbook( object ):
             if not DEBUGGING or not self.code in self.dump:
                 return
 
+            LOGGER.warn( "%3s: rooms %s", self.code, self.flatten( self.room_tokens ) )
+            LOGGER.warn( "     times %s", self.flatten( self.event_tokens ) )
+
+            return
+
+        @staticmethod
+        def flatten( chunk_list ):
             chunks = []
-            for tokens in self.event_tokens:
+            for tokens in chunk_list:
                 if isinstance( tokens, list ):
-                    chunks.append( ';'.join( [ str( times.seconds / 3600 ) for times in tokens ] ) )
+                    time_tokens = '[' + ','.join( [ str( times.seconds / 3600 ) for times in tokens ] ) + ']'
+                    chunks.append( time_tokens )
                 else:
                     chunks.append( tokens )
 
-            event_message = '~'.join( chunks )
-            room_message = '~'.join( self.room_tokens )
-
-            LOGGER.warn( "%3s: %s", self.code, room_message )
-            LOGGER.warn( "     %s", event_message )
-
-            return
+            return '~'.join( chunks )
 
         def create_event_map( self ):
             """Parse room data to set rooms for events"""
@@ -1582,9 +1630,14 @@ class WbcYearbook( object ):
 
             self.event_map = {}
 
+            remainder = ''
             for token in self.room_tokens:
+                if remainder:
+                    token = remainder + token
+                    remainder = ''
+
                 if token == 'dummy':
-                    pass  # Skip th estadium icon
+                    pass  # Skip the stadium icon
                 elif isinstance( token, list ):
                     pass  # If we see a list, it will contain a timedelta that is really the table number on the Terrace -- ignore it.
                 elif token in self.event_codes:
@@ -1707,6 +1760,7 @@ class WbcYearbook( object ):
             text = text.replace( 'switching to ', '>' )
             text = text.replace( ', >', '>' ).replace( ',>', '>' )
             text = text.replace( ' @ ', '@' )
+            text = text.replace( '@ ', '@' )
             text = text.replace( '@We9', '@WED:9' )
             text = text.replace( '9-19', '9' )
             text = text.replace( '+', '' )
@@ -1746,7 +1800,7 @@ class WbcYearbook( object ):
 
         for option in index.findAll( 'option' ):
             value = option['value']
-            if value == 'none' or value == 'jnrpge.htm':
+            if value == 'none' or value == '' or value == 'jnrpge.htm':
                 continue
             pagecode = value[0:3]
             self.load_yearbook_page( pagecode )
@@ -1766,7 +1820,7 @@ class WbcYearbook( object ):
         As is the case with all of the WBC web pages, the HTML is ugly and malformed.
         """
 
-        LOGGER.info( 'Loading yearbook for %s', pagecode )
+        LOGGER.debug( 'Loading yearbook for %s', pagecode )
 
         # Map page codes to event codes
         code = self.codemap[ pagecode ] if self.codemap.has_key( pagecode ) else pagecode.upper()
@@ -1780,12 +1834,14 @@ class WbcYearbook( object ):
         url = self.PAGE_URL % pagecode
         page = parse_url( url )
         if not page:
-            LOGGER.error( "Unable to load %s for [%s]", url, code )
+            LOGGER.error( "Unable to load %s for [%s:%s]", url, pagecode, code )
             return
 
-        t = WbcYearbook.Tourney( code, self.names[ code ], page, self.meta.first_day )
-
-        self.events[ code ] = t.events
+        if self.names.has_key( code ):
+            t = WbcYearbook.Tourney( code, self.names[ code ], page, self.meta.first_day )
+            self.events[ code ] = t.events
+        else:
+            LOGGER.error( "No event name for code [%s]; not loading yearbook", code )
 
 #----- Schedule Comparison ---------------------------------------------------
 
@@ -1916,15 +1972,20 @@ class ScheduleComparer( object ):
             # Fiil in the Preview event, if present
             if ybk_timemap.has_key( starting_time ):
                 e = ybk_timemap[ starting_time ]
-                location = 'Terrace' if e.location.startswith( 'Terr' ) else e.location
+                location = 'Terrace' if e.location and e.location.startswith( 'Terr' ) else e.location
                 details[1] = ( location, e.type )
 
             # Fill in the spreadsheet event, if present
             if cal_timemap.has_key( starting_time ):
                 e = cal_timemap[ starting_time ]
                 location = 'Terrace' if e['location'].startswith( 'Terr' ) else e['location']
-                summary = e['summary']
-                summary = summary[len( label ) + 1:] if summary.startswith( label ) else summary
+                summary = unicode( e['summary'] )
+                try:
+                    ulab = codecs.decode( label, 'utf-8' )
+                    summary = summary[len( ulab ) + 1:] if summary.startswith( ulab ) else summary
+                except Exception as x:
+                    LOGGER.error( u'Could not handle %s', summary )
+                    LOGGER.exception( x )
                 seconds = e['duration'].dt.seconds
                 hours = int( seconds / 3600 )
                 minutes = int ( ( seconds - 3600 * hours ) / 60 )
@@ -1976,9 +2037,12 @@ class ScheduleComparer( object ):
             tr.insert( len( tr ), th )
 
         if self.yearbook.valid:
+            a = self.parser.new_tag( 'a' )
+            a['href'] = self.yearbook.PAGE_URL % code.lower()
+            a.insert( 0, self.parser.new_string( 'Event Preview' ) )
             th = self.parser.new_tag( 'th' )
             th['colspan'] = 2
-            th.insert( 0, self.parser.new_string( 'Event Preview' ) )
+            th.insert( 0, a )
             tr.insert( len( tr ), th )
 
         th = self.parser.new_tag( 'th' )
@@ -2268,4 +2332,4 @@ if __name__ == '__main__':
     comparer = ScheduleComparer( meta, opts, wbc_schedule, wbc_allinone, wbc_yearbook )
     comparer.verify_event_calendars()
 
-    LOGGER.info( "Done." )
+    LOGGER.warn( "Done." )
