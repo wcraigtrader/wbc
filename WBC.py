@@ -404,7 +404,8 @@ class WbcXlsRow( WbcRow ):
 class WbcMetadata( object ):
     """Load metadata about events that is not available from other sources"""
 
-    this_year = datetime.now( TZ ).year
+    now = datetime.now( TZ )
+    this_year = now.year
 
     # Data file names
     EVENTCODES = "wbc-event-codes.csv"
@@ -942,6 +943,7 @@ class WbcSchedule( object ):
         e.add( 'DURATION', duration )
         e.add( 'LOCATION', entry.location )
         e.add( 'CONTACT', entry.gm )
+        e.add( 'LAST-MODIFIED', self.meta.now )
 
         if replace:
             self.add_or_replace_event( calendar, e, altname )
