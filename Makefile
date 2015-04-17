@@ -5,7 +5,6 @@ SCHEDULE=schedule
 YEAR=2014
 EXT=.xlsx
 REMOTE=trader.name:/data/web/trader/wbc
-# REMOTE=craigtrader@trader.name:trader.name/wbc
 
 SPREADSHEET=$(SCHEDULE)$(YEAR)$(EXT)
 OLD_SPREADSHEET=$(SCHEDULE)$(YEAR).old
@@ -22,6 +21,11 @@ build:
 
 dryrun:
 	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD) -n
+
+pull:
+	rm -rf live
+	mkdir live
+	rsync -v -rclD --delete $(REMOTE)/$(YEAR)/ live/
 
 publish:
 	rsync -v -rclD --delete $(BUILD)/ $(REMOTE)/$(YEAR)/
