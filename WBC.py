@@ -98,6 +98,9 @@ def process_options( metadata ):
 
     options.year = int( options.year )
 
+    if options.verbose:
+        LOGGER.setLevel( logging.DEBUG )
+
     return options
 
 #----- WBC Event -------------------------------------------------------------
@@ -137,16 +140,16 @@ class WbcRow( object ):
         self.readrow( *args )
 
         # This test is for debugging purposes; string search on the spreadsheet event name
-        if DEBUGGING and self.name.find( 'Titan' ) >= 0:
+        if DEBUGGING and self.name.find( 'Vendors' ) >= 0:
             pass
 
         # Check for errors that will throw exceptions later
         if self.gm == None:
-            LOGGER.warning( 'Event "%s" missing gm', self.event )
+            LOGGER.warning( 'Missing gm on %s', self )
             self.gm = ''
 
         if self.duration == None:
-            LOGGER.warning( 'Event "%s" missing duration', self.event )
+            LOGGER.warning( 'Missing duration on %s', self )
             self.duration = '0'
 
         if self.name.endswith( 'Final' ):
@@ -205,13 +208,18 @@ class WbcRow( object ):
                 self.start = int( n )
                 self.rounds = int( m )
                 self.name = self.name[:-len( text )].strip()
+            elif t == "H" or t == '':
+                self.type = self.type + ' ' + text
+                self.type = self.type.strip()
+                self.name = self.name[:-len( text )].strip()
             elif t == "D":
                 dtext = text.replace( 'D', '' )
                 self.type = self.type + ' Demo ' + dtext
                 self.type = self.type.strip()
                 self.name = self.name[:-len( text )].strip()
-            elif t == "H" or t == '':
-                self.type = self.type + ' ' + text
+            elif t == "P":
+                dtext = text.replace( 'P', '' )
+                self.type = self.type + ' Preview ' + dtext
                 self.type = self.type.strip()
                 self.name = self.name[:-len( text )].strip()
 
@@ -250,7 +258,11 @@ class WbcRow( object ):
             self.duration = self.duration[:-1]
 
         if self.duration and self.duration != '-':
-            self.length = timedelta( minutes=60 * float( self.duration ) )
+            try:
+                self.length = timedelta( minutes=60 * float( self.duration ) )
+            except:
+                LOGGER.error( "Invalid duration (%s) on %s", self.duration, self )
+                self.length = timedelta( minutes=0 )
 
     def checkcodes( self ):
         """
@@ -502,7 +514,7 @@ class WbcSchedule( object ):
     MENTOR = [ 'Mentoring' ]
     MULTIPLE = ['QF/SF/F', 'QF/SF', 'SF/F' ]
     SINGLE = [ 'QF', 'SF', 'F' ]
-    STYLE = [ 'After Action Debriefing', 'After Action', 'Aftermath', 'Awards', 'Demo', 'Mulligan' ] + MULTIPLE + SINGLE
+    STYLE = [ 'After Action Debriefing', 'After Action Meeting', 'After Action', 'Aftermath', 'Awards', 'Demo', 'Mulligan', 'Preview' ] + MULTIPLE + SINGLE
 
     TYPES = [ 'PC' ] + FLAVOR + JUNIOR + TEEN + MENTOR + STYLE
 
@@ -587,9 +599,9 @@ class WbcSchedule( object ):
                 if key:
                     key = unicodedata.normalize( 'NFKD', key ).encode( 'ascii', 'ignore' ).lower()
                 header.append( key )
+
             except:
                 raise ValueError( 'Unable to parse Column Header %d (%s)' % ( i, key ) )
-
         for i in range( 1, sheet.nrows ):
             if self.options.verbose:
                 LOGGER.debug( 'Reading row %d' % ( i + 1 ) )
@@ -768,7 +780,7 @@ class WbcSchedule( object ):
         playlate = self.meta.playlate.get( entry.code, None )
 
         if playlate and late_part:
-            LOGGER.warn( "%s: %4s, Start: %s, End: %s, Partial: %5.2f, %s", entry.code, playlate, next_start, next_end, late_part, late_part <= 0.5 )
+            LOGGER.warn( "Play late: %s: %4s, Start: %s, End: %s, Partial: %5.2f, %s", entry.code, playlate, next_start, next_end, late_part, late_part <= 0.5 )
 
         if playlate == 'all':
             pass  # always
@@ -1281,7 +1293,7 @@ class WbcAllInOne( object ):
     and BeautifulSoup can parse it. 
     """
 
-    SITE_URL = 'http://boardgamers.org/wbc/allin1.htm'
+    SITE_URL = 'http://boardgamers.org/wbc%d/allin1.htm'
 
     valid = False
 
@@ -1296,7 +1308,8 @@ class WbcAllInOne( object ):
     }
 
     # Events that are miscoded (bad code : actual code)
-    codemap = { 'MMA': 'MRA', }
+    # codemap = { 'MMA': 'MRA', }
+    codemap = { }
 
     events = {}
 
@@ -1328,7 +1341,7 @@ class WbcAllInOne( object ):
 
         LOGGER.info( 'Parsing WBC All-in-One schedule' )
 
-        self.page = parse_url( self.SITE_URL )
+        self.page = parse_url( self.SITE_URL % ( self.meta.this_year % 100 ) )
         if not self.page:
             return
 
@@ -1341,7 +1354,8 @@ class WbcAllInOne( object ):
             # Fetch from page body instead of page title.
             # html.body.table.tr.td.p.font.b.font.NavigableString
             try:
-                text = self.page.html.body.table.tr.td.p.font.b.font.text
+                td = self.page.html.body.table.tr.td
+                text = td.h1.b.text
                 year = str( text ).strip().split()
                 year = int( year[0] )
             except:
@@ -1353,8 +1367,8 @@ class WbcAllInOne( object ):
             return
 
         tables = self.page.findAll( 'table' )
-        rows = tables[1].findAll( 'tr' )
-        for row in rows[1:]:
+        rows = tables[3].findAll( 'tr' )
+        for row in rows:
             self.load_row( row )
 
         self.valid = True
@@ -1489,6 +1503,7 @@ class Token( object ):
         cls.LOOKUP[ 'Coonestoga 3'] = cls.LOOKUP[ 'Conestoga 3' ]
 
         cls.LOOKUP[ 'Cornwall' ] = Token( 'Room', 'Cornwall' )
+        cls.LOOKUP[ 'Cromwell' ] = cls.LOOKUP[ 'Cornwall' ]
         cls.LOOKUP[ 'Heritage' ] = Token( 'Room', 'Heritage' )
         cls.LOOKUP[ 'Hopewell' ] = Token( 'Room', 'Hopewell' )
         cls.LOOKUP[ 'Kinderhook' ] = Token( 'Room', 'Kinderhook' )
@@ -1572,6 +1587,7 @@ class Token( object ):
             'rd4' : cls.LOOKUP['R4'],
             'rd5' : cls.LOOKUP['R5'],
             'rd6' : cls.LOOKUP['R6'],
+            'sty_cont' : Token.CONTINUOUS,
             'demo' : cls.LOOKUP['Demo'],
             'demoweb' : cls.LOOKUP['Demo'],
             'demo_folder_transparent' : cls.LOOKUP['Demo'],
@@ -1836,6 +1852,10 @@ class Parser( object ):
                 self.last_name = self.last_name + u' ' + self.tokens[pos + l].label
                 l += 1
 
+            if self.have( pos + l, Token.CONTINUOUS ):
+                self.last_continuous = True
+                l += 1
+
         if self.have( pos + l, Token.AT, 'Room' ):
             self.last_room = self.tokens[pos + l + 1].label
             l += 2
@@ -1937,7 +1957,8 @@ class WbcPreview( object ):
 
     # codemap = { 'MRA': 'MMA', }
     # codemap = { 'mma' : 'MRA' }
-    codemap = { 'kot' : 'KOT' }
+    # codemap = { 'kot' : 'KOT' }
+    codemap = { 'gmb' : 'GBM' }
 
     # TODO: Preview codes for messages
     notes = {
@@ -1949,12 +1970,12 @@ class WbcPreview( object ):
         'KOT': "Can't match 30 minute rounds, Can't handle 'to conclusion'",
         'PGF': "Can't handle 'to conclusion'",
 
-        'ADV': "Preview shows 1 hour for SF and F, not 2 hours per spreadsheet and pocket schedule",
-        'BAR': "Pocket schedule shows R1@8/8:9, R2@8/8:14, R3@8/8:19, SF@8/9:9, F@8/9:14",
-        'KFE': "Pocket schedule shows R1@8/6:9, R2@8/6:16, SF@8/7:9, F@8/7:16",
-        'MED': "Preview shows heats taking place after SF/F",
-        'RFG': "Should only have 1 demo, can't parse H1 room",
-        'STA': "Conestoga is misspelled as Coonestoga",
+#         'ADV': "Preview shows 1 hour for SF and F, not 2 hours per spreadsheet and pocket schedule",
+#         'BAR': "Pocket schedule shows R1@8/8:9, R2@8/8:14, R3@8/8:19, SF@8/9:9, F@8/9:14",
+#         'KFE': "Pocket schedule shows R1@8/6:9, R2@8/6:16, SF@8/7:9, F@8/7:16",
+#         'MED': "Preview shows heats taking place after SF/F",
+#         'RFG': "Should only have 1 demo, can't parse H1 room",
+#         'STA': "Conestoga is misspelled as Coonestoga",
     }
 
     events = {}
@@ -1997,10 +2018,19 @@ class WbcPreview( object ):
         events = None
 
         def __init__( self, code, name, page, first_day ):
-
+            """The schedule table within the page is a table that has a variable number of rows:
+        
+            [0] Contains the date the page was last updated -- ignored (may not be present).
+            [1] Contains the token code and other image codes
+            [2:-2] Contains the schedule data, mostly as images, in two columns
+            [-1] Contains the location information.
+            """
             self.code = code
             self.name = name
             self.first_day = first_day
+
+            if self.code == 'ACQ':
+                pass
 
             # Find schedule / rows
             tables = page.findAll( 'table' )
@@ -2021,7 +2051,10 @@ class WbcPreview( object ):
             """Parse 3rd row through next-to-last for event data"""
 
             self.event_tokens = []
-            for row in rows[2:-1]:
+            start = 1
+            if rows[0].text.find( 'Updated' ) != -1:
+                start += 1
+            for row in rows[start:-1]:
                 for td in row.findAll( 'td' ):
                     self.event_tokens.append( Token.START )
                     self.event_tokens += Token.tokenize( td )
@@ -2187,15 +2220,7 @@ class WbcPreview( object ):
         self.valid = True
 
     def load_preview_page( self, pagecode ):
-        """Load and parse the preview page for a single tournament
-        
-        The schedule table within the page is a table that has a variable number of rows:
-        
-            [0] Contains the date the page was last updated -- ignored.
-            [1] Contains the token code and other image codes
-            [2:-2] Contains the schedule data, mostly as images, in two columns
-            [-1] Contains the location information.
-            
+        """Load and parse the preview page for a single tournament.            
         As is the case with all of the WBC web pages, the HTML is ugly and malformed.
         """
 
@@ -2343,16 +2368,16 @@ class ScheduleComparer( object ):
             # Start with empty cells
             details = [( None, ), ( None, ), ( None, ), ]
 
-            # Fill in the All-in-One event, if present
-            if ai1_timemap.has_key( starting_time ):
-                e = ai1_timemap[ starting_time ]
-                location = 'Terrace' if e.location == 'Pt' else e.location
-                details[0] = ( location, e.type )
-
             # Fill in the Preview event, if present
             if prv_timemap.has_key( starting_time ):
                 e = prv_timemap[ starting_time ]
                 location = 'Terrace' if e.location and e.location.startswith( 'Terr' ) else e.location
+                details[0] = ( location, e.type )
+
+            # Fill in the All-in-One event, if present
+            if ai1_timemap.has_key( starting_time ):
+                e = ai1_timemap[ starting_time ]
+                location = 'Terrace' if e.location == 'Pt' else e.location
                 details[1] = ( location, e.type )
 
             # Fill in the spreadsheet event, if present
@@ -2410,12 +2435,6 @@ class ScheduleComparer( object ):
         th.insert( 0, self.parser.new_string( label ) )
         tr.insert( len( tr ), th )
 
-        if self.allinone.valid:
-            th = self.parser.new_tag( 'th' )
-            th['colspan'] = 2
-            th.insert( 0, self.parser.new_string( 'All-in-One' ) )
-            tr.insert( len( tr ), th )
-
         if self.preview.valid:
             a = self.parser.new_tag( 'a' )
             a['href'] = self.preview.PAGE_URL % code.lower()
@@ -2423,6 +2442,12 @@ class ScheduleComparer( object ):
             th = self.parser.new_tag( 'th' )
             th['colspan'] = 2
             th.insert( 0, a )
+            tr.insert( len( tr ), th )
+
+        if self.allinone.valid:
+            th = self.parser.new_tag( 'th' )
+            th['colspan'] = 2
+            th.insert( 0, self.parser.new_string( 'All-in-One' ) )
             tr.insert( len( tr ), th )
 
         th = self.parser.new_tag( 'th' )

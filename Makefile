@@ -2,7 +2,7 @@
 
 SITE=http://boardgamers.org/downloads/
 SCHEDULE=schedule
-YEAR=2014
+YEAR=2015
 EXT=.xlsx
 REMOTE=trader.name:/data/web/trader/wbc
 
