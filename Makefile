@@ -11,6 +11,7 @@ OLD_SPREADSHEET=$(SCHEDULE)$(YEAR).old
 NEW_SPREADSHEET=$(SCHEDULE)$(YEAR).new
 
 BUILD=site
+CACHE=cache
 
 all:	build
 
@@ -31,8 +32,8 @@ publish:
 	rsync -v -rclD --delete $(BUILD)/ $(REMOTE)/$(YEAR)/
 
 clean:
-	rm -rf $(BUILD)
-	mkdir $(BUILD)
+	rm -rf $(BUILD) $(CACHE)
+	mkdir $(BUILD) $(CACHE) 
 
 backup:
 	rm -rf save
@@ -51,7 +52,7 @@ fetch:
 	fi
 
 prerequisites:
-	sudo apt-get install python-pip
 	sudo pip install --upgrade icalendar
 	sudo pip install --upgrade beautifulsoup4
 	sudo pip install --upgrade xlrd
+	sudo pip install --upgrade lxml

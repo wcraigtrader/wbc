@@ -28,15 +28,16 @@
 # xxlint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0612,W0621,W0702,W0703
 # pylint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0702
 
-from cgi import escape
+# from cgi import escape
+# from itertools import izip_longest
+
+import codecs
+import csv
 from datetime import date, datetime, time, timedelta
 from functools import total_ordering
-from itertools import izip_longest
-from optparse import OptionParser
-
-import csv
-import codecs
+from hashlib import md5 as hash
 import logging
+from optparse import OptionParser
 import os
 import re
 import shutil
@@ -45,7 +46,6 @@ import urllib2
 
 from bs4 import BeautifulSoup, Tag, NavigableString, Comment
 from icalendar import Calendar, Event
-
 import pytz
 import xlrd
 
@@ -62,6 +62,8 @@ UTC = pytz.timezone( 'UTC' )  # UTC timezone (for iCal)
 
 #----- Utility methods -------------------------------------------------------
 
+WEBCACHE = 'cache'
+
 def parse_url( url ):
     """
     Utility function to load an HTML page from a URL, and parse it with BeautifulSoup.
@@ -69,10 +71,19 @@ def parse_url( url ):
 
     page = None
     try:
-        f = urllib2.urlopen( url )
-        data = f.read()
+        cacheid = os.path.join( WEBCACHE, hash( url ).hexdigest() )
+        if os.path.exists( cacheid ):
+            with open( cacheid, 'r' ) as c:
+                data = c.read()
+        else:
+            f = urllib2.urlopen( url )
+            data = f.read()
+            with open( cacheid, 'w' ) as c:
+                c.write( data )
+
         if ( len( data ) ):
             page = BeautifulSoup( data, "lxml" )
+
     except Exception as e:  # pylint: disable=W0703
         LOGGER.error( 'Failed while loading (%s)', url )
         LOGGER.error( e )
@@ -108,7 +119,7 @@ def process_options( metadata ):
 @total_ordering
 class WbcRow( object ):
     """
-    A WbcRow encapsulates information about a single schedule line from the 
+    A WbcRow encapsulates information about a single schedule line from the
     WBC schedule spreadsheet. This line may result in a dozen or more calendar events.
     """
 
@@ -499,7 +510,7 @@ class WbcMetadata( object ):
 
 class WbcSchedule( object ):
     """
-    The WbcSchedule class parses the entire WBC schedule spreadsheet and creates 
+    The WbcSchedule class parses the entire WBC schedule spreadsheet and creates
     iCalendar calendars for each event (with vEvents for each time slot).
     """
     valid = False
@@ -675,20 +686,20 @@ class WbcSchedule( object ):
     def process_event( self, event ):
         """
         For a spreadsheet entry, generate calendar events as follows:
-        
-        If the event is WAW, 
+
+        If the event is WAW,
             treat it like an all-week free-format event.
         If the event is free-format, and a grognard,
             it's an all-week event, but use the grognard duration from the event codes.
         If the event is free-format, and a Swiss Elimination, and it has rounds,
             it's an all-week event, but use the duration from the event codes.
-        If the event has rounds, 
+        If the event has rounds,
             add calendar events for each round.
-        If the event is marked as continuous, and it's marked 'HMSE', 
+        If the event is marked as continuous, and it's marked 'HMSE',
            there's no clue as to how many actual heats there are, so just add one event.
-        If the event is marked as continuous, 
+        If the event is marked as continuous,
             add as many events as there are types coded.
-        Otherwise, 
+        Otherwise,
            add a single event for the event.
         """
 
@@ -752,12 +763,12 @@ class WbcSchedule( object ):
     def calculate_next_start_time( self, entry, start ):
         """
         Calculate when to start the next round.
-        
-        In theory, WBC runs from 9am to midnight.  Thus rounds that would 
-        otherwise begin or end after midnight should be postponed until 
+
+        In theory, WBC runs from 9am to midnight.  Thus rounds that would
+        otherwise begin or end after midnight should be postponed until
         9am the next morning.  There are three types of exceptions to this
-        rule:  
-        
+        rule:
+
         (1) some events run their finals directly after the semi-finals conclude,
             which can cause the final to run past midnight.
         (2) some events are scheduled to run multiple rounds past midnight.
@@ -798,9 +809,9 @@ class WbcSchedule( object ):
     def process_freeformat_swel_event( self, calendar, entry ):
         """
         Process an entry that is a event with no fixed schedule.
-        
-        These events run continuously for several days, followed by 
-        separate semi-final and finals.  This is the same as an 
+
+        These events run continuously for several days, followed by
+        separate semi-final and finals.  This is the same as an
         all-week-event, except that the event duration and name are wrong.
         """
 
@@ -811,13 +822,13 @@ class WbcSchedule( object ):
     def process_freeformat_grognard_event( self, calendar, entry ):
         """
         Process an entry that is a pre-con event with no fixed schedule.
-        
-        These events run for 10 hours on Saturday, 15 hours on Sunday, 
-        15 hours on Monday, and 9 hours on Tuesday, before switching to a 
-        normal tourney schedule.  This is the same as an all-week-event, 
+
+        These events run for 10 hours on Saturday, 15 hours on Sunday,
+        15 hours on Monday, and 9 hours on Tuesday, before switching to a
+        normal tourney schedule.  This is the same as an all-week-event,
         except that the event duration and name are wrong.
-          
-        In this case, the duration is 10 + 15 + 15 + 9 = 49 hours. 
+
+        In this case, the duration is 10 + 15 + 15 + 9 = 49 hours.
         """
         # FIXME: This is wrong for BWD, which starts at 10am on the PC days, not 9am
         duration = self.meta.grognards[entry.code] if self.meta.grognards.has_key( entry.code ) else 49
@@ -847,20 +858,20 @@ class WbcSchedule( object ):
     def alternate_round_name( self, entry, event_type=None ):
         """
         Create the equivalent round name for a given entry.
-        
+
         At WBC, a tournament is typically composed a set of elimination rounds.
-        The first round can be composed of multiple qualification heats, and 
+        The first round can be composed of multiple qualification heats, and
         a tournament may also include a mulligan round.  After that, rounds are
         identified by the round number (eg: R2/4 represents Round 2 of 4).
-        To make matters more complicated, the last round of a tournament is 
+        To make matters more complicated, the last round of a tournament is
         typically labeled 'F' for Final, and the next-to-last round would be
         'SF' for SemiFinal.  For a large enough tournament, there may even be
-        a quarter-final round.  Thus it is possible to see a tourney with multiple 
-        heats (H1, H2, H3), and then R2/6, R3/6, QF, SF, F, where R4/6 = QF, 
+        a quarter-final round.  Thus it is possible to see a tourney with multiple
+        heats (H1, H2, H3), and then R2/6, R3/6, QF, SF, F, where R4/6 = QF,
         R5/6 = SF, and R6/6 = F.
-        
-        This method will calculate what the generic round name should be, 
-        if the current entry type is 'QF', 'SF', or 'F'.   
+
+        This method will calculate what the generic round name should be,
+        if the current entry type is 'QF', 'SF', or 'F'.
         """
 
         event_type = event_type if event_type else entry.type
@@ -944,6 +955,7 @@ class WbcSchedule( object ):
         """
         name = name if name else entry.name
         start = start if start else entry.datetime
+        start = start.replace( second=0, microsecond=0 )
         duration = duration if duration else entry.length
 
         localized_start = TZ.localize( start )
@@ -964,8 +976,8 @@ class WbcSchedule( object ):
 
     def add_or_replace_event( self, calendar, event, altname=None ):
         """
-        Insert a vEvent into an iCalendar.  
-        If the vEvent 'matches' an existing vEvent, replace the existing vEvent instead.  
+        Insert a vEvent into an iCalendar.
+        If the vEvent 'matches' an existing vEvent, replace the existing vEvent instead.
         """
         for i in range( len( calendar.subcomponents ) ):
             if self.is_same_icalendar_event( calendar.subcomponents[i], event, altname ):
@@ -1045,7 +1057,7 @@ class WbcSchedule( object ):
 
     def write_index_page( self ):
         """
-        Using an HTML Template, create an index page that lists 
+        Using an HTML Template, create an index page that lists
         all of the created calendars.
         """
 
@@ -1146,8 +1158,8 @@ class WbcSchedule( object ):
     @staticmethod
     def split_list( original, width ):
         """
-        A generator that, given a list of indeterminate length, will split the list into 
-        roughly equal columns, and then return the resulting list one row at a time. 
+        A generator that, given a list of indeterminate length, will split the list into
+        roughly equal columns, and then return the resulting list one row at a time.
         """
 
         max_length = len( original )
@@ -1225,9 +1237,9 @@ class WbcSchedule( object ):
     def is_same_icalendar_event( e1, e2, altname=None ):
         """
         Compare two events to determine if they are 'the same'.
-        
+
         If they start at the same time, and have the same duration, they're 'the same'.
-        If they have the same name, they're 'the same'. 
+        If they have the same name, they're 'the same'.
         If the first matches an alternative name, they're 'the same'.
         """
         same = str( e1['dtstart'] ) == str( e2['dtstart'] )
@@ -1255,17 +1267,17 @@ class WbcSchedule( object ):
 
 class WbcAllInOne( object ):
     """
-    This class is used to parse the published All-in-One Schedule, and produce 
-    a list of tourney events that can be used to compare against the calendars 
-    generated by the WbcSchedule class.  
-    
-    The comparer is really just a sanity check, because there is less 
-    information present in the All-in-One Schedule than is needed to build a 
+    This class is used to parse the published All-in-One Schedule, and produce
+    a list of tourney events that can be used to compare against the calendars
+    generated by the WbcSchedule class.
+
+    The comparer is really just a sanity check, because there is less
+    information present in the All-in-One Schedule than is needed to build a
     correct calendar entry.  On the other hand, it's easier to parse than the
     YearBook pages for each event.
 
     A typical row on the All-in-One schedule might look something like this:
-        
+
         <tr><td>
         <i><FONT SIZE=+2>RBS</FONT></i>
         </td><td align=right valign=top bgcolor="#FFFF00">
@@ -1288,9 +1300,9 @@ class WbcAllInOne( object ):
         </td><td>
         &nbsp</td><td>
         &nbsp</tr>
-        
-    This is, frankly, horrible HTML.  But at least it's consistent, year-to-year, 
-    and BeautifulSoup can parse it. 
+
+    This is, frankly, horrible HTML.  But at least it's consistent, year-to-year,
+    and BeautifulSoup can parse it.
     """
 
     SITE_URL = 'http://boardgamers.org/wbc%d/allin1.htm'
@@ -1301,8 +1313,9 @@ class WbcAllInOne( object ):
 
     colormap = {
         'green': 'Demo',
-        '#07BED2': 'Mulligan',
+        'magenta': 'Mulligan',
         'red': 'Round',
+        '#07BED2': 'QF',
         'blue': 'SF',
         '#AAAA00': 'F',
     }
@@ -1802,6 +1815,21 @@ class Parser( object ):
         LOGGER.debug( 'Matched %s', self.last_day )
         return 1
 
+    def match_one_or_more_days( self, pos=0 ):
+        self.match_initialize()
+
+        if not self.have( pos, 'Day' ):
+            return 0
+
+        l = 0
+        while self.have( pos + l, 'Day' ):
+            self.last_day = self.tokens[pos]
+            l += 1
+
+        LOGGER.debug( 'Matched %s => %s', self.tokens[pos:pos + 1], self.last_day )
+        del self.tokens[pos:pos + l]
+        return 1
+
     def match_single_event_time( self, pos=0, awards_are_events=False ):
         self.match_initialize()
 
@@ -1869,7 +1897,7 @@ class Parser( object ):
         self.match_initialize()
 
         if not self.have( pos, 'Event', 'Time', 'Time' ):
-            return False
+            return 0
 
         self.last_name = self.tokens[pos].label
         self.last_actual = self.tokens[pos].label
@@ -1887,7 +1915,7 @@ class Parser( object ):
     def match_room( self, pos=0 ):
         self.match_initialize()
 
-        if not  self.have( pos, 'Room' ):
+        if not self.have( pos, 'Room' ):
             return 0
 
         self.last_room = self.tokens[pos].label
@@ -2019,7 +2047,7 @@ class WbcPreview( object ):
 
         def __init__( self, code, name, page, first_day ):
             """The schedule table within the page is a table that has a variable number of rows:
-        
+
             [0] Contains the date the page was last updated -- ignored (may not be present).
             [1] Contains the token code and other image codes
             [2:-2] Contains the schedule data, mostly as images, in two columns
@@ -2095,6 +2123,68 @@ class WbcPreview( object ):
                 LOGGER.warn( '%3s: Unmatched room tokens: %s', self.code, p.tokens )
                 pass
 
+        def parse_events_2015( self ):
+
+            # START <day> ( <event> <time> { PLUS | MINUS <end time> }? ( AT <room> )? )*
+            # START <day>* ( <day> <event> <time> PLUS? )? <day>* <event> <time> PLUS?
+            # [ AT <room> ] }+
+            # If there are multiple times, then each represents a separate event on that day
+
+            LOGGER.debug( 'Parsing events ...' )
+
+            awards_are_events = self.code in ['UPF', 'VIP', 'WWR' ]
+            two_weekends = self.code in [ 'AFK', 'AOR', 'AUC', 'BWD', 'GBG', 'PZB', 'TRC', 'SQL', 'WAT', 'WSM' ]
+
+            self.events = []
+
+            weekend_offset = 0
+            weekend_start = 5 if two_weekends else 1
+
+            p = Parser( self.event_tokens )
+
+            if self.code in [ 'ATS']:
+                pass
+
+            while p.have_start():
+                p.match( Token.START )
+
+                while p.count and not p.have_start():
+                    if p.match_day():
+                        day = p.last_day
+                        weekend_offset = 7 if day.value > weekend_start else weekend_offset
+                        day_of_week = day.value + weekend_offset if day.value < 2 else day.value
+                        midnight = self.first_day + timedelta( days=day_of_week )
+
+                    elif p.match_multiple_event_times():
+                        for etime in p.time_list:
+                            # handle events immediately
+                            dtime = midnight + etime
+                            room = self.find_room( p.last_actual, dtime, p.last_room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), room )
+                            self.events.append ( e )
+
+                    elif p.match_single_event_time( awards_are_events=awards_are_events ):
+                        if self.code == 'PDT' and p.last_name.endswith( 'FC' ):
+                            dtime = midnight + p.last_start
+                            room = self.find_room( p.last_actual, dtime, self.draft_room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', TZ.localize( dtime ), room )
+                            self.events.append ( e )
+
+                            dtime = dtime + timedelta( hours=1 )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), self.default_room )
+                            self.events.append ( e )
+
+                        else:
+                            dtime = midnight + p.last_start
+                            room = self.find_room( p.last_actual, dtime, p.last_room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), room )
+                            self.events.append ( e )
+
+                    else:
+                        p.recover()
+
+            self.events.sort()
+
         def parse_events( self ):
 
             # START <day> ( <event> <time> { PLUS | MINUS <end time> }? ( AT <room> )? )*
@@ -2106,7 +2196,7 @@ class WbcPreview( object ):
             LOGGER.debug( 'Parsing events ...' )
 
             awards_are_events = self.code in ['UPF', 'VIP', 'WWR' ]
-            two_weekends = self.code in [ 'BWD' ]
+            two_weekends = self.code in [ 'AFK', 'AOR', 'AUC', 'BWD', 'GBG', 'PZB', 'TRC', 'SQL', 'WAT', 'WSM' ]
 
             self.events = []
 
@@ -2125,7 +2215,7 @@ class WbcPreview( object ):
                 partial = []
 
                 while p.count and not p.have_start():
-                    if p.match_day():
+                    if p.match_one_or_more_days():
                         # add day to day queue
                         day = p.last_day
                         days.append( day )
@@ -2220,7 +2310,7 @@ class WbcPreview( object ):
         self.valid = True
 
     def load_preview_page( self, pagecode ):
-        """Load and parse the preview page for a single tournament.            
+        """Load and parse the preview page for a single tournament.
         As is the case with all of the WBC web pages, the HTML is ugly and malformed.
         """
 
@@ -2567,6 +2657,9 @@ class ScheduleComparer( object ):
 #----- Real work happens here ------------------------------------------------
 
 if __name__ == '__main__':
+
+    if not os.path.exists( WEBCACHE ):
+        os.makedirs( WEBCACHE )
 
     meta = WbcMetadata()
 
