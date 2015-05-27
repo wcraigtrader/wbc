@@ -72,6 +72,16 @@ if __name__ == '__main__':
     # Create calendar events from all of the spreadsheet events.
     wbc_schedule.create_wbc_calendars()
 
+    if opts.write_files:
+        # Write the individual event calendars.
+        wbc_schedule.write_all_calendar_files()
+
+        # Build the HTML index.
+        wbc_schedule.write_index_page()
+
+        # Output an improved copy of the input spreadsheet, in CSV
+        wbc_schedule.write_spreadsheet()
+
     # Print the unmatched events for rework.
     wbc_schedule.report_unprocessed_events()
 
@@ -85,15 +95,5 @@ if __name__ == '__main__':
     # Compare the event calendars with the WBC All-in-One schedule and the preview
     comparer = ScheduleComparer( meta, opts, wbc_schedule, wbc_allinone, wbc_preview )
     comparer.verify_event_calendars()
-
-    if opts.write_files:
-        # Write the individual event calendars.
-        wbc_schedule.write_all_calendar_files()
-
-        # Build the HTML index.
-        wbc_schedule.write_index_page()
-
-        # Output an improved copy of the input spreadsheet, in CSV
-        wbc_schedule.write_spreadsheet()
 
     LOGGER.warn( "Done." )

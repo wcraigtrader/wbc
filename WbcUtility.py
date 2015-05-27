@@ -23,16 +23,15 @@ LOGGER = logging.getLogger( 'WbcUtility' )
 
 #----- Utility methods -------------------------------------------------------
 
+WEBCACHE = 'cache'
+
 def parse_url( url ):
     """
     Utility function to load an HTML page from a URL, and parse it with BeautifulSoup.
     """
 
-    WEBCACHE = 'cache'
-
     if not os.path.exists( WEBCACHE ):
         os.makedirs( WEBCACHE )
-
 
     page = None
     try:
