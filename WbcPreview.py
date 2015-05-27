@@ -1,15 +1,9 @@
-from bs4 import BeautifulSoup, Tag, NavigableString, Comment
+from bs4 import Tag, NavigableString, Comment
 from datetime import timedelta
-from optparse import OptionParser
 import logging
-import codecs
-import os
 import re
-import unicodedata
-import urllib2
-import xlrd
 
-from WbcMetaData import TZ, UTC
+from WbcMetadata import TZ
 from WbcUtility import parse_url
 
 LOGGER = logging.getLogger( 'WbcPreview' )
@@ -208,7 +202,7 @@ class Token( object ):
     @classmethod
     def tokenize( cls, tag ):
         tokens = []
-        buffer = u''
+        partial = u''
 
         if TRAPPING:
             pass
@@ -217,17 +211,17 @@ class Token( object ):
             if isinstance( tag, Comment ):
                 pass  # Always ignore comments
             elif isinstance( tag, NavigableString ):
-                buffer += u' ' + unicode( tag )
+                partial += u' ' + unicode( tag )
             elif isinstance( tag, Tag ) and tag.name in [ 'img' ]:
-                tokens += cls.tokenize_text( buffer )
-                buffer = u''
+                tokens += cls.tokenize_text( partial )
+                partial = u''
                 tokens += cls.tokenize_icon( tag )
             else:
                 pass  # ignore other tags, for now
                 # LOGGER.debug( 'Ignored <%s>', tag.name )
 
-        if buffer:
-            tokens += cls.tokenize_text( buffer )
+        if partial:
+            tokens += cls.tokenize_text( partial )
 
         return tokens
 
@@ -250,11 +244,11 @@ class Token( object ):
         elif name in [ 'stadium', 'class_a', 'class_b', 'coached' ]:
             pass
         elif name.startswith( 'for_' ):
-            format = name[4:]
-            token = Token( 'Format', format )
+            form = name[4:]
+            token = Token( 'Format', form )
             cls.ICONS[ name ] = token
             tokens.append( token )
-            LOGGER.warn( 'Automatically added format [%s]', format )
+            LOGGER.warn( 'Automatically added form [%s]', form )
         elif name.startswith( 'sty_' ):
             style = name[4:]
             token = Token( 'Style', style )

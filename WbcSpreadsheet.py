@@ -11,7 +11,7 @@ import shutil
 import unicodedata
 import xlrd
 
-from WbcMetaData import TZ, UTC
+from WbcMetadata import TZ, UTC
 
 LOGGER = logging.getLogger( 'WbcSpreadsheet' )
 

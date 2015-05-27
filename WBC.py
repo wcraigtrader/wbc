@@ -20,15 +20,14 @@
 # xxlint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0612,W0621,W0702,W0703
 # pylint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0702
 
-from WbcMetaData import WbcMetadata, TZ, UTC
-from WbcSpreadsheet import WbcSchedule
-from WbcPreview import WbcPreview
-from WbcAllInOne import WbcAllInOne
-from WbcScheduleComparison import ScheduleComparer
-
 from optparse import OptionParser
 import logging
 
+from WbcAllInOne import WbcAllInOne
+from WbcMetadata import WbcMetadata
+from WbcPreview import WbcPreview
+from WbcScheduleComparison import ScheduleComparer
+from WbcSpreadsheet import WbcSchedule
 
 logging.basicConfig( level=logging.INFO )
 LOGGER = logging.getLogger( 'WBC' )
@@ -73,6 +72,20 @@ if __name__ == '__main__':
     # Create calendar events from all of the spreadsheet events.
     wbc_schedule.create_wbc_calendars()
 
+    # Print the unmatched events for rework.
+    wbc_schedule.report_unprocessed_events()
+
+    # Parse the WBC All-in-One schedule
+    wbc_allinone = WbcAllInOne( meta, opts )
+
+    # Parse the WBC Preview
+    names = dict( [( key_code, val_name ) for key_code, val_name in meta.names.items() ] )
+    wbc_preview = WbcPreview( meta, opts, names )
+
+    # Compare the event calendars with the WBC All-in-One schedule and the preview
+    comparer = ScheduleComparer( meta, opts, wbc_schedule, wbc_allinone, wbc_preview )
+    comparer.verify_event_calendars()
+
     if opts.write_files:
         # Write the individual event calendars.
         wbc_schedule.write_all_calendar_files()
@@ -82,21 +95,5 @@ if __name__ == '__main__':
 
         # Output an improved copy of the input spreadsheet, in CSV
         wbc_schedule.write_spreadsheet()
-
-    # Print the unmatched events for rework.
-    wbc_schedule.report_unprocessed_events()
-
-    # Parse the WBC All-in-One schedule
-    wbc_allinone = WbcAllInOne( meta, opts )
-
-    # Parse the WBC Preview
-    # names = dict( [( key_code, val_name ) for key_code, val_name in meta.names.items() if key_code in wbc_schedule.current_tourneys ] )
-    names = dict( [( key_code, val_name ) for key_code, val_name in meta.names.items() ] )
-    # names = { 'UPF': 'Up Front', 'PDT' : 'Pay Dirt', 'RDG' : 'Ra: The Dice Game' }
-    wbc_preview = WbcPreview( meta, opts, names )
-
-    # Compare the event calendars with the WBC All-in-One schedule and the preview
-    comparer = ScheduleComparer( meta, opts, wbc_schedule, wbc_allinone, wbc_preview )
-    comparer.verify_event_calendars()
 
     LOGGER.warn( "Done." )

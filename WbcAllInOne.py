@@ -1,7 +1,7 @@
 from datetime import timedelta
 import logging
 
-from WbcMetaData import TZ
+from WbcMetadata import TZ
 from WbcUtility import parse_url
 
 LOGGER = logging.getLogger( 'WbcAllInOne' )

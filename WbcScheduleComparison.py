@@ -1,16 +1,9 @@
-from bs4 import BeautifulSoup, Tag, NavigableString, Comment
-from datetime import timedelta
-from optparse import OptionParser
-import logging
+from bs4 import BeautifulSoup
 import codecs
+import logging
 import os
-import re
-import unicodedata
-import urllib2
-import xlrd
 
-from WbcMetaData import TZ, UTC
-from WbcUtility import parse_url
+from WbcMetadata import TZ
 
 LOGGER = logging.getLogger( 'WbcScheduleComparison' )
 
