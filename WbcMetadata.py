@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import csv
 import logging
 import os
@@ -25,6 +25,18 @@ LOGGER = logging.getLogger( 'WbcMetaData' )
 
 TZ = pytz.timezone( 'America/New_York' )  # Tournament timezone
 UTC = pytz.timezone( 'UTC' )  # UTC timezone (for iCal)
+
+#----- Time Functions --------------------------------------------------------
+
+def round_up_datetime( timestamp ):
+    ts = timestamp + timedelta( seconds=30 )
+    ts = ts.replace( second=0, microsecond=0 )
+    return ts
+
+def round_up_timedelta( duration ):
+    seconds = duration.total_seconds()
+    seconds = 60 * int( ( seconds + 30 ) / 60 )
+    return timedelta( seconds=seconds )
 
 #----- WBC Meta Data ---------------------------------------------------------
 

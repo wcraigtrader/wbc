@@ -26,7 +26,8 @@ import shutil
 import unicodedata
 import xlrd
 
-from WbcMetadata import TZ, UTC
+from WbcMetadata import TZ, UTC, round_up_datetime, round_up_timedelta
+
 
 LOGGER = logging.getLogger( 'WbcSpreadsheet' )
 
@@ -188,7 +189,8 @@ class WbcRow( object ):
 
         if self.duration and self.duration != '-':
             try:
-                self.length = timedelta( minutes=60 * float( self.duration ) )
+                l = timedelta( minutes=60 * float( self.duration ) )
+                self.length = round_up_timedelta( l )
             except:
                 LOGGER.error( "Invalid duration (%s) on %s", self.duration, self )
                 self.length = timedelta( minutes=0 )
@@ -789,7 +791,7 @@ class WbcSchedule( object ):
         """
         name = name if name else entry.name
         start = start if start else entry.datetime
-        start = start.replace( second=0, microsecond=0 )
+        start = round_up_datetime( start )
         duration = duration if duration else entry.length
 
         localized_start = TZ.localize( start )

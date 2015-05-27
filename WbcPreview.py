@@ -337,10 +337,13 @@ class Token( object ):
 class Parser( object ):
 
     tokens = []
+    last_match = None
 
     def __init__( self, tokens ):
         self.tokens = list( tokens )
-        self.last_match = None
+
+    def __str__( self ):
+        return "%s (%d) %s" % ( self.last_match, self.count, self.tokens )
 
     @property
     def count( self ):
@@ -596,13 +599,14 @@ class WbcPreview( object ):
 
     # TODO: Preview codes for messages
     notes = {
-        'CNS': "Can't match 30 minute rounds",
+        'CNS': "Can't match 15 minute rounds",
         'ELC': "Can't match 20 minute rounds",
-        'LID': "Can't match 20 minute rounds",
-        'SLS': "Can't match 20 minute rounds",
+        'KOT': "Can't match 15 minute rounds, Can't handle 'to conclusion'",
+        'LID': "Can't match 30 minute rounds",
         'LST': "Can't match 30 minute rounds, Can't handle 'until conclusion'",
-        'KOT': "Can't match 30 minute rounds, Can't handle 'to conclusion'",
         'PGF': "Can't handle 'to conclusion'",
+        'RTT': "Can't match 30 minute rounds, Can't handle 'until completion'",
+        'SLS': "Can't match 20 minute rounds",
 
 #         'ADV': "Preview shows 1 hour for SF and F, not 2 hours per spreadsheet and pocket schedule",
 #         'BAR': "Pocket schedule shows R1@8/8:9, R2@8/8:14, R3@8/8:19, SF@8/9:9, F@8/9:14",
@@ -652,6 +656,8 @@ class WbcPreview( object ):
         event_map = None
         events = None
 
+        tracking = [ 'AFK', 'WAW' ]
+
         def __init__( self, code, name, page, first_day ):
             """The schedule table within the page is a table that has a variable number of rows:
 
@@ -679,7 +685,7 @@ class WbcPreview( object ):
             self.tokenize_rooms( rows )
             self.tokenize_times( rows )
 
-            if DEBUGGING:
+            if self.code in self.tracking:
                 LOGGER.info( "%3s: rooms %s", self.code, Token.dump_list( self.room_tokens ) )
                 LOGGER.info( "     times %s", Token.dump_list( self.event_tokens ) )
                 LOGGER.info( "     codes %s", Token.dump_list( self.code_tokens ) )
@@ -736,6 +742,12 @@ class WbcPreview( object ):
                 LOGGER.warn( '%3s: Unmatched room tokens: %s', self.code, p.tokens )
                 pass
 
+        def parse_events( self ):
+            if self.code in [ 'AFK', 'PZB', 'WAW' ]:
+                self.parse_events_2014()
+            else:
+                self.parse_events_2015()
+
         def parse_events_2015( self ):
 
             # START <day> ( <event> <time> { PLUS | MINUS <end time> }? ( AT <room> )? )*
@@ -774,31 +786,31 @@ class WbcPreview( object ):
                             dtime = midnight + etime
                             room = self.find_room( p.last_actual, dtime, p.last_room )
                             e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), room )
-                            self.events.append ( e )
+                            self.add_event( e )
 
                     elif p.match_single_event_time( awards_are_events=awards_are_events ):
                         if self.code == 'PDT' and p.last_name.endswith( 'FC' ):
                             dtime = midnight + p.last_start
                             room = self.find_room( p.last_actual, dtime, self.draft_room )
                             e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', TZ.localize( dtime ), room )
-                            self.events.append ( e )
+                            self.add_event( e )
 
                             dtime = dtime + timedelta( hours=1 )
                             e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), self.default_room )
-                            self.events.append ( e )
+                            self.add_event( e )
 
                         else:
                             dtime = midnight + p.last_start
                             room = self.find_room( p.last_actual, dtime, p.last_room )
                             e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), room )
-                            self.events.append ( e )
+                            self.add_event( e )
 
                     else:
                         p.recover()
 
             self.events.sort()
 
-        def parse_events( self ):
+        def parse_events_2014( self ):
 
             # START <day> ( <event> <time> { PLUS | MINUS <end time> }? ( AT <room> )? )*
             # START <day> ( <day>* <event> <time> PLUS? )? <day>* <event> <time> PLUS?
@@ -818,7 +830,7 @@ class WbcPreview( object ):
 
             p = Parser( self.event_tokens )
 
-            if self.code in [ 'ATS']:
+            if self.code in [ 'WAW']:
                 pass
 
             while p.have_start():
@@ -828,7 +840,7 @@ class WbcPreview( object ):
                 partial = []
 
                 while p.count and not p.have_start():
-                    if p.match_one_or_more_days():
+                    if p.match_day():
                         # add day to day queue
                         day = p.last_day
                         days.append( day )
@@ -844,7 +856,7 @@ class WbcPreview( object ):
                             dtime = midnight + etime
                             room = self.find_room( p.last_actual, dtime, p.last_room )
                             e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), room )
-                            self.events.append ( e )
+                            self.add_event( e )
 
                     elif p.match_single_event_time( awards_are_events=awards_are_events ):
                         if p.last_name == 'Demo':
@@ -852,17 +864,17 @@ class WbcPreview( object ):
                             dtime = midnight + p.last_start
                             room = self.find_room( p.last_actual, dtime, p.last_room )
                             e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), room )
-                            self.events.append ( e )
+                            self.add_event( e )
 
                         elif self.code == 'PDT' and p.last_name.endswith( 'FC' ):
                             dtime = midnight + p.last_start
                             room = self.find_room( p.last_actual, dtime, self.draft_room )
                             e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', TZ.localize( dtime ), room )
-                            self.events.append ( e )
+                            self.add_event( e )
 
                             dtime = dtime + timedelta( hours=1 )
                             e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), self.default_room )
-                            self.events.append ( e )
+                            self.add_event( e )
 
                         else:
                             # add event to event queue
@@ -881,9 +893,14 @@ class WbcPreview( object ):
                         dtime = midnight + pevent.time
                         room = self.find_room( pevent.actual, dtime, pevent.location )
                         e = WbcPreview.Event( self.code, self.name, pevent.type, TZ.localize( dtime ), room )
-                        self.events.append( e )
+                        self.add_event( e )
 
             self.events.sort()
+
+        def add_event( self, event ):
+            if event.code in self.tracking:
+                LOGGER.info( event )
+            self.events.append( event )
 
         def find_room( self, etype, etime, eroom ):
             room = self.shift_room if self.shift_room and etime >= self.shift_time else self.default_room
@@ -915,7 +932,7 @@ class WbcPreview( object ):
 
         for option in index.findAll( 'option' ):
             value = option['value']
-            if value == 'none' or value == '' or value == 'jnrpge.htm':
+            if value == 'none' or value == '' or value == 'jnrpge.htm' or value in 'precon.htm':
                 continue
             pagecode = value[0:3]
             self.load_preview_page( pagecode )
@@ -931,15 +948,6 @@ class WbcPreview( object ):
 
         # Map page codes to event codes
         code = self.codemap[ pagecode ] if self.codemap.has_key( pagecode ) else pagecode.upper()
-
-#         # Skip any codes whose pages we can't handle
-#         if self.skip.has_key( code ):
-#             LOGGER.warn( 'Skipping %s: %s -- %s', code, self.names[ code ], self.skip[ code ] )
-#             return
-
-        if not self.names.has_key( code ):
-#            LOGGER.error( "No event name for code [%s]; not loading preview", code )
-            return
 
         # Load page
         url = self.PAGE_URL % pagecode
