@@ -1,6 +1,7 @@
 from datetime import datetime
 import csv
 import logging
+import os
 import pytz
 
 LOGGER = logging.getLogger( 'WbcMetaData' )
@@ -19,8 +20,8 @@ class WbcMetadata( object ):
     this_year = now.year
 
     # Data file names
-    EVENTCODES = "wbc-event-codes.csv"
-    OTHERCODES = "wbc-other-codes.csv"
+    EVENTCODES = os.path.join( "meta", "wbc-event-codes.csv" )
+    OTHERCODES = os.path.join( "meta", "wbc-other-codes.csv" )
 
     others = []  # List of non-tournament event matching data
     special = []  # List of non-tournament event codes
