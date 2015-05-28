@@ -1,6 +1,9 @@
 .project
 .pydevproject
+.settings
 python27
 python33
+cache
+site
 *.pyc
 .~*#
