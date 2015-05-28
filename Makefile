@@ -32,8 +32,12 @@ publish:
 	rsync -v -rclD --delete $(BUILD)/ $(REMOTE)/$(YEAR)/
 
 clean:
-	rm -rf $(BUILD) $(CACHE)
-	mkdir $(BUILD) $(CACHE) 
+	rm -rf $(BUILD)
+	mkdir $(BUILD)
+
+very-clean: clean
+	rm -rf $(CACHE)
+	mkdir $(CACHE)
 
 backup:
 	rm -rf save
