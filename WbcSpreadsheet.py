@@ -42,7 +42,7 @@ class WbcRow( object ):
     WBC schedule spreadsheet. This line may result in a dozen or more calendar events.
     """
 
-    FIELDS = [ 'Date', 'Time', 'Event', 'PRIZE', 'CLASS', 'Format', 'Duration', 'Continuous', 'GM', 'Location', 'Code' ]
+    FIELDS = [ 'Date', 'Time', 'Name', 'PRIZE', 'CLASS', 'Format', 'Duration', 'Continuous', 'GM', 'Location', 'Code' ]
 
     def __init__( self, schedule, line, *args ):
 
@@ -86,6 +86,7 @@ class WbcRow( object ):
             self.name = self.name[:-4]
 
         # parse the data to generate useful fields
+        self.cleanlocation()
         self.checkrounds()
         self.checktypes( self.schedule.TYPES )
         self.checkrounds()
@@ -223,6 +224,13 @@ class WbcRow( object ):
                     ( o['name'] and o['name'] == self.name ) ):
                     self.code = o['code']
                     return
+
+    def cleanlocation( self ):
+        """Clean up typical typos in the location name"""
+        if self.location:
+            self.location = self.location.strip()
+            self.location = self.location.replace( '  ', ' ' )
+            self.location = self.location.replace( 'Marieta', 'Marietta' )
 
     def checktimes( self ):
         """Stub"""
