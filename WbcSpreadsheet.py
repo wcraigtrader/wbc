@@ -42,7 +42,7 @@ class WbcRow( object ):
     WBC schedule spreadsheet. This line may result in a dozen or more calendar events.
     """
 
-    FIELDS = [ 'Date', 'Time', 'Name', 'PRIZE', 'CLASS', 'Format', 'Duration', 'Continuous', 'GM', 'Location', 'Code' ]
+    FIELDS = [ 'Date', 'Time', 'Event', 'PRIZE', 'CLASS', 'Format', 'Duration', 'Continuous', 'GM', 'Location', 'Code' ]
 
     def __init__( self, schedule, line, *args ):
 
@@ -1064,8 +1064,11 @@ class WbcSchedule( object ):
         2) The iCalendar library doesn't sort the events in a given calendar by date/time.
         """
 
-        output = calendar.to_ical()
-        output = output.replace( ";TZID=UTC;VALUE=DATE-TIME:", ":" )
+        c = calendar
+        c.subcomponents.sort( cmp=cls.compare_icalendar_events )
+
+        output = c.to_ical()
+        # output = output.replace( ";VALUE=DATE-TIME:", ":" )
         return output
 
     @staticmethod
