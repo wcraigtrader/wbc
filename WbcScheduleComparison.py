@@ -20,9 +20,6 @@ import os
 
 LOGGER = logging.getLogger( 'WbcScheduleComparison' )
 
-DEBUGGING = True
-TRAPPING = False
-
 #----- Schedule Comparison ---------------------------------------------------
 
 class ScheduleComparer( object ):
@@ -211,7 +208,7 @@ class ScheduleComparer( object ):
 
         if self.preview.valid:
             a = self.parser.new_tag( 'a' )
-            a['href'] = self.preview.PAGE_URL % code.lower()
+            a['href'] = self.meta.url[ code ]
             a.insert( 0, self.parser.new_string( 'Event Preview' ) )
             th = self.parser.new_tag( 'th' )
             th['colspan'] = 2

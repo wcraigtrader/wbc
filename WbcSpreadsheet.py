@@ -31,8 +31,6 @@ from WbcUtility import round_up_datetime, round_up_timedelta
 
 LOGGER = logging.getLogger( 'WbcSpreadsheet' )
 
-DEBUGGING = False
-
 #----- WBC Event -------------------------------------------------------------
 
 @total_ordering
@@ -70,7 +68,7 @@ class WbcRow( object ):
         self.readrow( *args )
 
         # This test is for debugging purposes; string search on the spreadsheet event name
-        if DEBUGGING and self.name.find( 'Vendors' ) >= 0:
+        if 0 and self.name.find( 'Vendors' ) >= 0:
             pass
 
         # Check for errors that will throw exceptions later
@@ -546,7 +544,7 @@ class WbcSchedule( object ):
         calendar = self.get_or_create_event_calendar( event.code )
 
         # This test is for debugging purposes, and is only good for an event that was sucessfully coded
-        if DEBUGGING and event.code in [ 'TTN' ]:
+        if self.meta.debug and event.code in [ 'TTN' ]:
             pass
 
         if event.code == 'WAW':
@@ -631,7 +629,7 @@ class WbcSchedule( object ):
         playlate = self.meta.playlate.get( entry.code, None )
 
         if playlate and late_part:
-            LOGGER.warn( "Play late: %s: %4s, Start: %s, End: %s, Partial: %5.2f, %s", entry.code, playlate, next_start, next_end, late_part, late_part <= 0.5 )
+            LOGGER.debug( "Play late: %s: %4s, Start: %s, End: %s, Partial: %5.2f, %s", entry.code, playlate, next_start, next_end, late_part, late_part <= 0.5 )
 
         if playlate == 'all':
             pass  # always

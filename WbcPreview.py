@@ -22,9 +22,6 @@ from WbcUtility import parse_url
 
 LOGGER = logging.getLogger( 'WbcPreview' )
 
-DEBUGGING = True
-TRAPPING = False
-
 #----- Token -----------------------------------------------------------------
 
 class Token( object ):
@@ -217,9 +214,6 @@ class Token( object ):
     def tokenize( cls, tag ):
         tokens = []
         partial = u''
-
-        if TRAPPING:
-            pass
 
         for tag in tag.descendants:
             if isinstance( tag, Comment ):
@@ -588,14 +582,6 @@ class WbcPreview( object ):
     # the convention stretching from 9 days from Saturday to the following Sunday,
     # there are two Saturdays and two Sundays, each represented by the same icon.
 
-    PAGE_URL = "http://boardgamers.org/yearbkex/%spge.htm"
-    INDEX_URL = "http://boardgamers.org/yearbkex%d/"
-
-    # codemap = { 'MRA': 'MMA', }
-    # codemap = { 'mma' : 'MRA' }
-    # codemap = { 'kot' : 'KOT' }
-    codemap = { 'gmb' : 'GBM' }
-
     # TODO: Preview codes for messages, move to Meta
     notes = {
         'CNS': "Can't match 15 minute rounds",
@@ -655,7 +641,7 @@ class WbcPreview( object ):
         event_map = None
         events = None
 
-        tracking = [ 'AFK', 'WAW' ]
+        tracking = []
 
         def __init__( self, meta, code, name, page ):
             """The schedule table within the page is a table that has a variable number of rows:
