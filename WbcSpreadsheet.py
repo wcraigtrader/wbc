@@ -26,7 +26,6 @@ import shutil
 import unicodedata
 import xlrd
 
-from WbcMetadata import TZ, UTC
 from WbcUtility import round_up_datetime, round_up_timedelta
 
 
@@ -390,7 +389,6 @@ class WbcSchedule( object ):
         """
         Initialize a schedule
         """
-        self.processed = datetime.now( TZ )
 
         self.meta = metadata
 
@@ -800,8 +798,8 @@ class WbcSchedule( object ):
         start = round_up_datetime( start )
         duration = duration if duration else entry.length
 
-        localized_start = TZ.localize( start )
-        utc_start = localized_start.astimezone( UTC )
+        localized_start = self.meta.TZ.localize( start )
+        utc_start = localized_start.astimezone( self.meta.UTC )
 
         e = Event()
         e.add( 'SUMMARY', name )
@@ -918,7 +916,7 @@ class WbcSchedule( object ):
         # Page title
         title.insert( 0, parser.new_string( "WBC %s Event Schedule" % self.meta.year ) )
         header.h1.insert( 0, parser.new_string( "WBC %s Event Schedule" % self.meta.year ) )
-        footer.p.insert( 0, parser.new_string( "Updated on %s" % self.processed.strftime( "%A, %d %B %Y %H:%M %Z" ) ) )
+        footer.p.insert( 0, parser.new_string( "Updated on %s" % self.meta.now.strftime( "%A, %d %B %Y %H:%M %Z" ) ) )
 
         # Tournament event calendars
         tourneys = dict( [( k, v ) for k, v in self.calendars.items() if k not in self.meta.special ] )

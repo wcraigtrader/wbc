@@ -18,8 +18,6 @@ import codecs
 import logging
 import os
 
-from WbcMetadata import TZ
-
 LOGGER = logging.getLogger( 'WbcScheduleComparison' )
 
 DEBUGGING = True
@@ -113,7 +111,7 @@ class ScheduleComparer( object ):
 
         title.insert( 0, self.parser.new_string( text ) )
         header.h1.insert( 0, self.parser.new_string( text ) )
-        footer.p.insert( 0, self.parser.new_string( "Updated on %s" % self.schedule.processed.strftime( "%A, %d %B %Y %H:%M %Z" ) ) )
+        footer.p.insert( 0, self.parser.new_string( "Updated on %s" % self.meta.now.strftime( "%A, %d %B %Y %H:%M %Z" ) ) )
 
     def report_discrepancies( self, code ):
         """Format the discrepancies for a given tournament"""
@@ -125,9 +123,9 @@ class ScheduleComparer( object ):
         cal_events = self.schedule.calendars[code].subcomponents
 
         # Find all of the unique times for any events
-        ai1_timemap = dict( [ ( e.time.astimezone( TZ ), e ) for e in ai1_events ] )
-        prv_timemap = dict( [ ( e.time.astimezone( TZ ), e ) for e in prv_events ] )
-        cal_timemap = dict( [ ( e['dtstart'].dt.astimezone( TZ ), e ) for e in cal_events ] )
+        ai1_timemap = dict( [ ( e.time.astimezone( self.meta.TZ ), e ) for e in ai1_events ] )
+        prv_timemap = dict( [ ( e.time.astimezone( self.meta.TZ ), e ) for e in prv_events ] )
+        cal_timemap = dict( [ ( e['dtstart'].dt.astimezone( self.meta.TZ ), e ) for e in cal_events ] )
         time_set = set( ai1_timemap.keys() ) | set( prv_timemap.keys() ) | set( cal_timemap.keys() )
         time_list = list( time_set )
         time_list.sort()
@@ -313,29 +311,26 @@ class ScheduleComparer( object ):
         with codecs.open( path, 'w', 'utf-8' ) as f:
             f.write( self.parser.prettify() )
 
-    @staticmethod
-    def ai1_date_loc( ev ):
+    def ai1_date_loc( self, ev ):
         """Generate a summary of an all-in-one event for comparer purposes"""
 
-        start_time = ev.time.astimezone( TZ )
+        start_time = ev.time.astimezone( self.meta.TZ )
         location = ev.location
         location = 'Terrace' if location == 'Pt' else location
         return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M' ), location )
 
-    @staticmethod
-    def prv_date_loc( ev ):
+    def prv_date_loc( self, ev ):
         """Generate a summary of an preview event for comparer purposes"""
 
-        start_time = ev.time.astimezone( TZ )
+        start_time = ev.time.astimezone( self.meta.TZ )
         location = ev.location
         location = 'Terrace' if location.startswith( 'Terr' ) else location
         return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M' ), location )
 
-    @staticmethod
-    def cal_date_loc( sc ):
+    def cal_date_loc( self, sc ):
         """Generate a summary of a calendar event for comparer purposes"""
 
-        start_time = sc['dtstart'].dt.astimezone( TZ )
+        start_time = sc['dtstart'].dt.astimezone( self.meta.TZ )
         location = sc['location']
         location = 'Terrace' if location.startswith( 'Terrace' ) else location
         return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M' ), location )

@@ -16,7 +16,6 @@
 from datetime import timedelta
 import logging
 
-from WbcMetadata import TZ
 from WbcUtility import parse_url
 
 LOGGER = logging.getLogger( 'WbcAllInOne' )
@@ -177,7 +176,7 @@ class WbcAllInOne( object ):
                         if day >= 32:  # This works because WBC always starts in either the end of July or beginning of August
                             day = day - 31
                             month = month + 1
-                        e.time = TZ.localize( current_date.replace( month=month, day=day, hour=hour ) )
+                        e.time = self.meta.TZ.localize( current_date.replace( month=month, day=day, hour=hour ) )
                         e.type = self.colormap.get( val, None )
                         current[hour] = e
 

@@ -18,7 +18,6 @@ from datetime import timedelta
 import logging
 import re
 
-from WbcMetadata import TZ
 from WbcUtility import parse_url
 
 LOGGER = logging.getLogger( 'WbcPreview' )
@@ -658,7 +657,7 @@ class WbcPreview( object ):
 
         tracking = [ 'AFK', 'WAW' ]
 
-        def __init__( self, code, name, page, first_day ):
+        def __init__( self, meta, code, name, page ):
             """The schedule table within the page is a table that has a variable number of rows:
 
             [0] Contains the date the page was last updated -- ignored (may not be present).
@@ -666,9 +665,11 @@ class WbcPreview( object ):
             [2:-2] Contains the schedule data, mostly as images, in two columns
             [-1] Contains the location information.
             """
+
+            self.meta = meta
             self.code = code
             self.name = name
-            self.first_day = first_day
+            self.first_day = self.meta.first_day
 
             if self.code == 'ACQ':
                 pass
@@ -785,24 +786,24 @@ class WbcPreview( object ):
                             # handle events immediately
                             dtime = midnight + etime
                             room = self.find_room( p.last_actual, dtime, p.last_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, self.meta.TZ.localize( dtime ), room )
                             self.add_event( e )
 
                     elif p.match_single_event_time( awards_are_events=awards_are_events ):
                         if self.code == 'PDT' and p.last_name.endswith( 'FC' ):
                             dtime = midnight + p.last_start
                             room = self.find_room( p.last_actual, dtime, self.draft_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', TZ.localize( dtime ), room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', self.meta.TZ.localize( dtime ), room )
                             self.add_event( e )
 
                             dtime = dtime + timedelta( hours=1 )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), self.default_room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, self.meta.TZ.localize( dtime ), self.default_room )
                             self.add_event( e )
 
                         else:
                             dtime = midnight + p.last_start
                             room = self.find_room( p.last_actual, dtime, p.last_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, self.meta.TZ.localize( dtime ), room )
                             self.add_event( e )
 
                     else:
@@ -855,7 +856,7 @@ class WbcPreview( object ):
                             # handle events immediately
                             dtime = midnight + etime
                             room = self.find_room( p.last_actual, dtime, p.last_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, self.meta.TZ.localize( dtime ), room )
                             self.add_event( e )
 
                     elif p.match_single_event_time( awards_are_events=awards_are_events ):
@@ -863,17 +864,17 @@ class WbcPreview( object ):
                             # handle demos immediately
                             dtime = midnight + p.last_start
                             room = self.find_room( p.last_actual, dtime, p.last_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, self.meta.TZ.localize( dtime ), room )
                             self.add_event( e )
 
                         elif self.code == 'PDT' and p.last_name.endswith( 'FC' ):
                             dtime = midnight + p.last_start
                             room = self.find_room( p.last_actual, dtime, self.draft_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', TZ.localize( dtime ), room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', self.meta.TZ.localize( dtime ), room )
                             self.add_event( e )
 
                             dtime = dtime + timedelta( hours=1 )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, TZ.localize( dtime ), self.default_room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, self.meta.TZ.localize( dtime ), self.default_room )
                             self.add_event( e )
 
                         else:
@@ -892,7 +893,7 @@ class WbcPreview( object ):
                         # add event to actual event list
                         dtime = midnight + pevent.time
                         room = self.find_room( pevent.actual, dtime, pevent.location )
-                        e = WbcPreview.Event( self.code, self.name, pevent.type, TZ.localize( dtime ), room )
+                        e = WbcPreview.Event( self.code, self.name, pevent.type, self.meta.TZ.localize( dtime ), room )
                         self.add_event( e )
 
             self.events.sort()
@@ -955,6 +956,6 @@ class WbcPreview( object ):
             LOGGER.error( "Unable to load %s for [%s:%s]", url, pagecode, code )
             return
 
-        t = WbcPreview.Tourney( code, self.names[ code ], page, self.meta.first_day )
+        t = WbcPreview.Tourney( self.meta, code, self.names[ code ], page )
         self.events[ code ] = t.events
 

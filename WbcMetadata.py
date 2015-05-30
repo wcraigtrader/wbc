@@ -22,17 +22,13 @@ import pytz
 
 LOGGER = logging.getLogger( 'WbcMetaData' )
 
-#----- Time Constants --------------------------------------------------------
-
-# TODO: Move TZ/UTC to Metadata object
-
-TZ = pytz.timezone( 'America/New_York' )  # Tournament timezone
-UTC = pytz.timezone( 'UTC' )  # UTC timezone (for iCal)
-
 #----- WBC Meta Data ---------------------------------------------------------
 
 class WbcMetadata( object ):
     """Load metadata about events that is not available from other sources"""
+
+    TZ = pytz.timezone( 'America/New_York' )  # Tournament timezone
+    UTC = pytz.timezone( 'UTC' )  # UTC timezone (for iCal)
 
     now = datetime.now( TZ )
     this_year = now.year
