@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from datetime import timedelta
 from bs4 import BeautifulSoup
 from hashlib import md5 as hash
 import logging
@@ -21,7 +22,7 @@ import urllib2
 
 LOGGER = logging.getLogger( 'WbcUtility' )
 
-#----- Utility methods -------------------------------------------------------
+#----- Web methods -------------------------------------------------------
 
 WEBCACHE = 'cache'
 
@@ -53,4 +54,16 @@ def parse_url( url ):
         LOGGER.error( e )
 
     return page
+
+#----- Time Functions --------------------------------------------------------
+
+def round_up_datetime( timestamp ):
+    ts = timestamp + timedelta( seconds=30 )
+    ts = ts.replace( second=0, microsecond=0 )
+    return ts
+
+def round_up_timedelta( duration ):
+    seconds = duration.total_seconds()
+    seconds = 60 * int( ( seconds + 30 ) / 60 )
+    return timedelta( seconds=seconds )
 

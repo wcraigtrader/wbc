@@ -100,9 +100,8 @@ class WbcAllInOne( object ):
         def __str__( self ):
             return '%s %s %s in %s at %s' % ( self.code, self.name, self.type, self.location, self.time )
 
-    def __init__( self, metadata, options ):
+    def __init__( self, metadata ):
         self.meta = metadata
-        self.options = options
         self.page = None
 
         self.load_table()
@@ -112,7 +111,7 @@ class WbcAllInOne( object ):
 
         LOGGER.info( 'Parsing WBC All-in-One schedule' )
 
-        self.page = parse_url( self.SITE_URL % ( self.meta.this_year % 100 ) )
+        self.page = parse_url( self.SITE_URL % ( self.meta.year % 100 ) )
         if not self.page:
             return
 
@@ -132,7 +131,7 @@ class WbcAllInOne( object ):
             except:
                 year = 2013
 
-        if year != self.meta.this_year and year != self.options.year:
+        if year != self.meta.this_year and year != self.meta.year:
             LOGGER.error( "All-in-one schedule for %d is out of date", year )
 
             return

@@ -32,8 +32,7 @@ class ScheduleComparer( object ):
 
     TEMPLATE = 'report-template.html'
 
-    def __init__( self, metadata, options, s, a, p=None ):
-        self.options = options
+    def __init__( self, metadata, s, a, p=None ):
         self.meta = metadata
         self.schedule = s
         self.allinone = a
@@ -107,10 +106,10 @@ class ScheduleComparer( object ):
         footer = self.parser.find( 'div', { 'id' : 'footer' } )
 
         # Page title
-        if self.options.fullreport:
-            text = "WBC %s Schedule Details" % self.options.year
+        if self.meta.fullreport:
+            text = "WBC %s Schedule Details" % self.meta.year
         else:
-            text = "WBC %s Schedule Discrepancies" % self.options.year
+            text = "WBC %s Schedule Discrepancies" % self.meta.year
 
         title.insert( 0, self.parser.new_string( text ) )
         header.h1.insert( 0, self.parser.new_string( text ) )
@@ -192,7 +191,7 @@ class ScheduleComparer( object ):
         rows[0].next['rowspan'] = len( rows )
 
         # If there were discrepancies, then add the rows to the report
-        if discrepancies or self.options.fullreport:
+        if discrepancies or self.meta.fullreport:
             self.add_discrepancies_to_report( rows )
 
     def create_discrepancy_header( self, rows, code ):
@@ -310,7 +309,7 @@ class ScheduleComparer( object ):
     def write_discrepancies_report( self ):
         """Write the discrepancies report, in a nice pretty format"""
 
-        path = os.path.join( self.schedule.options.output, "report.html" )
+        path = os.path.join( self.meta.output, "report.html" )
         with codecs.open( path, 'w', 'utf-8' ) as f:
             f.write( self.parser.prettify() )
 

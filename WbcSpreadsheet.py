@@ -26,7 +26,8 @@ import shutil
 import unicodedata
 import xlrd
 
-from WbcMetadata import TZ, UTC, round_up_datetime, round_up_timedelta
+from WbcMetadata import TZ, UTC
+from WbcUtility import round_up_datetime, round_up_timedelta
 
 
 LOGGER = logging.getLogger( 'WbcSpreadsheet' )
@@ -383,25 +384,22 @@ class WbcSchedule( object ):
     current_tourneys = []
     everything = None
     tournaments = None
-    options = None
+    meta = None
 
-    def __init__( self, metadata, options ):
+    def __init__( self, metadata ):
         """
         Initialize a schedule
         """
         self.processed = datetime.now( TZ )
 
         self.meta = metadata
-        self.options = options
 
-        self.year = self.options.year
-
-        if not os.path.exists( self.options.output ):
-            os.makedirs( self.options.output )
+        if not os.path.exists( self.meta.output ):
+            os.makedirs( self.meta.output )
 
         self.load_events()
 
-        self.prodid = "WBC %s" % self.options.year
+        self.prodid = "WBC %s" % self.meta.year
 
         self.valid = True
 
@@ -412,14 +410,14 @@ class WbcSchedule( object ):
 
         LOGGER.info( 'Scanning schedule spreadsheet' )
 
-        filename = self.options.input
-        if self.options.type == 'csv':
+        filename = self.meta.input
+        if self.meta.type == 'csv':
             if not filename:
-                filename = "wbc-%s-schedule.csv" % self.options.year
+                filename = "wbc-%s-schedule.csv" % self.meta.year
             self.scan_csv_file( filename )
-        elif self.options.type == 'xls':
+        elif self.meta.type == 'xls':
             if not filename:
-                filename = "schedule%s.xls" % self.options.year
+                filename = "schedule%s.xls" % self.meta.year
             self.scan_xls_file( filename )
 
     def scan_csv_file( self, filename ):
@@ -458,7 +456,7 @@ class WbcSchedule( object ):
             except:
                 raise ValueError( 'Unable to parse Column Header %d (%s)' % ( i, key ) )
         for i in range( 1, sheet.nrows ):
-            if self.options.verbose:
+            if self.meta.verbose:
                 LOGGER.debug( 'Reading row %d' % ( i + 1 ) )
             event_row = WbcXlsRow( self, i + 1, header, sheet.row( i ), book.datemode )
             self.categorize_row( event_row )
@@ -499,12 +497,12 @@ class WbcSchedule( object ):
         self.everything = Calendar()
         self.everything.add( 'VERSION', '2.0' )
         self.everything.add( 'PRODID', '-//' + self.prodid + ' Everything//ct7//' )
-        self.everything.add( 'SUMMARY', 'WBC %s All-in-One Schedule' % self.options.year )
+        self.everything.add( 'SUMMARY', 'WBC %s All-in-One Schedule' % self.meta.year )
 
         self.tournaments = Calendar()
         self.tournaments.add( 'VERSION', '2.0' )
         self.tournaments.add( 'PRODID', '-//' + self.prodid + ' Tournaments//ct7//' )
-        self.tournaments.add( 'SUMMARY', 'WBC %s Tournaments Schedule' % self.options.year )
+        self.tournaments.add( 'SUMMARY', 'WBC %s Tournaments Schedule' % self.meta.year )
 
         # For all of the event calendars
         for code, calendar in self.calendars.items():
@@ -843,7 +841,7 @@ class WbcSchedule( object ):
         Write an actual calendar file, using a filesystem-safe name.
         """
         filename = self.safe_ics_filename( name )
-        with open( os.path.join( self.options.output, filename ), "wb" ) as f:
+        with open( os.path.join( self.meta.output, filename ), "wb" ) as f:
             f.write( self.serialize_calendar( calendar ) )
 
     def write_all_calendar_files( self ):
@@ -853,15 +851,15 @@ class WbcSchedule( object ):
         LOGGER.info( "Saving calendars..." )
 
         # Remote any existing destination directory
-        if os.path.exists( self.options.output ):
-            shutil.rmtree( self.options.output )
+        if os.path.exists( self.meta.output ):
+            shutil.rmtree( self.meta.output )
 
         # Create the destination directory
-        os.makedirs( self.options.output )
+        os.makedirs( self.meta.output )
 
         # Copy needed files to the destination
         if os.path.exists( 'ical.gif' ):
-            shutil.copy( 'ical.gif', self.options.output )
+            shutil.copy( 'ical.gif', self.meta.output )
 
         # For all of the event calendars
         for code, calendar in self.calendars.items():
@@ -893,7 +891,7 @@ class WbcSchedule( object ):
         data = data + self.unmatched
         data.sort()
 
-        spreadsheet_file = os.path.join( self.options.output, "schedule.csv" )
+        spreadsheet_file = os.path.join( self.meta.output, "schedule.csv" )
         with codecs.open( spreadsheet_file, "w", 'utf-8' ) as f:
             writer = csv.DictWriter( f, WbcRow.FIELDS, extrasaction='ignore' )
             writer.writeheader()
@@ -918,8 +916,8 @@ class WbcSchedule( object ):
         footer = parser.find( 'div', { 'id' : 'footer' } )
 
         # Page title
-        title.insert( 0, parser.new_string( "WBC %s Event Schedule" % self.options.year ) )
-        header.h1.insert( 0, parser.new_string( "WBC %s Event Schedule" % self.options.year ) )
+        title.insert( 0, parser.new_string( "WBC %s Event Schedule" % self.meta.year ) )
+        header.h1.insert( 0, parser.new_string( "WBC %s Event Schedule" % self.meta.year ) )
         footer.p.insert( 0, parser.new_string( "Updated on %s" % self.processed.strftime( "%A, %d %B %Y %H:%M %Z" ) ) )
 
         # Tournament event calendars
@@ -943,7 +941,7 @@ class WbcSchedule( object ):
         specials['tournaments'] = self.tournaments
         self.render_calendar_list( parser, 'special', 'Special Calendars', specials )
 
-        with codecs.open( os.path.join( self.options.output, 'index.html' ), 'w', 'utf-8' ) as f:
+        with codecs.open( os.path.join( self.meta.output, 'index.html' ), 'w', 'utf-8' ) as f:
             f.write( parser.prettify() )
 
     @classmethod

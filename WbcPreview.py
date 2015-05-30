@@ -597,7 +597,7 @@ class WbcPreview( object ):
     # codemap = { 'kot' : 'KOT' }
     codemap = { 'gmb' : 'GBM' }
 
-    # TODO: Preview codes for messages
+    # TODO: Preview codes for messages, move to Meta
     notes = {
         'CNS': "Can't match 15 minute rounds",
         'ELC': "Can't match 20 minute rounds",
@@ -913,16 +913,15 @@ class WbcPreview( object ):
 
             return room
 
-    def __init__( self, metadata, options, event_names ):
+    def __init__( self, metadata, event_names ):
         self.meta = metadata
-        self.options = options
 
         self.names = event_names  # mapping of codes to event names
         self.codes = event_names.keys()
         self.codes.sort()
 
-        self.yy = self.options.year % 100
-        if self.options.year != self.meta.this_year:
+        self.yy = self.meta.year % 100
+        if self.meta.year != self.meta.this_year:
             self.PAGE_URL = "http://boardgamers.org/yearbkex%d/%%spge.htm" % ( self.yy, )
 
         LOGGER.info( 'Loading Preview schedule' )

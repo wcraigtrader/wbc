@@ -13,7 +13,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from datetime import datetime, timedelta
+from datetime import datetime
+from optparse import OptionParser
 import csv
 import logging
 import os
@@ -23,20 +24,10 @@ LOGGER = logging.getLogger( 'WbcMetaData' )
 
 #----- Time Constants --------------------------------------------------------
 
+# TODO: Move TZ/UTC to Metadata object
+
 TZ = pytz.timezone( 'America/New_York' )  # Tournament timezone
 UTC = pytz.timezone( 'UTC' )  # UTC timezone (for iCal)
-
-#----- Time Functions --------------------------------------------------------
-
-def round_up_datetime( timestamp ):
-    ts = timestamp + timedelta( seconds=30 )
-    ts = ts.replace( second=0, microsecond=0 )
-    return ts
-
-def round_up_timedelta( duration ):
-    seconds = duration.total_seconds()
-    seconds = 60 * int( ( seconds + 30 ) / 60 )
-    return timedelta( seconds=seconds )
 
 #----- WBC Meta Data ---------------------------------------------------------
 
@@ -50,6 +41,10 @@ class WbcMetadata( object ):
     EVENTCODES = os.path.join( "meta", "wbc-event-codes.csv" )
     OTHERCODES = os.path.join( "meta", "wbc-other-codes.csv" )
 
+    PREVIEW_INDEX_URL = "http://boardgamers.org/yearbkex%d/"
+    PREVIEW_PAGE_URL = "http://boardgamers.org/yearbkex/%spge.htm"
+    MISCODES = { 'gmb' : 'GBM', 'MRA': 'MMA', 'mma' : 'MRA', 'kot' : 'KOT' }
+
     others = []  # List of non-tournament event matching data
     special = []  # List of non-tournament event codes
     tourneys = []  # List of tournament codes
@@ -60,12 +55,57 @@ class WbcMetadata( object ):
     durations = {}  # Special durations for events that have them
     grognards = {}  # Special durations for grognard events that have them
     playlate = {}  # Flag for events that may run past midnight
+    preview = {}  # URL for event preview for this event code
 
     first_day = None  # First calendar day for this year's convention
 
+    year = this_year  # Year to process
+    type = "xls"  # Type of spreadsheet to parse
+    input = None  # Name of spreadsheet to parse
+    output = "site"  # Name of directory for results
+    write_files = True  # Whether or not to output files
+    fullreport = False  # True for more detailed discrepancy reporting
+    verbose = False  # True for more detailed logging
+    debug = False  # True for debugging and even more detailed logging
+
     def __init__( self ):
+        self.process_options()
         self.load_tourney_codes()
         self.load_other_codes()
+        self.load_preview_index()
+
+    def process_options( self ):
+        """
+        Parse command line options
+        """
+
+        parser = OptionParser()
+        parser.add_option( "-y", "--year", dest="year", metavar="YEAR", default=self.this_year, help="Year to process" )
+        parser.add_option( "-t", "--type", dest="type", metavar="TYPE", default="xls", help="Type of file to process (csv,xls)" )
+        parser.add_option( "-i", "--input", dest="input", metavar="FILE", default=None, help="Schedule spreadsheet to process" )
+        parser.add_option( "-o", "--output", dest="output", metavar="DIR", default="build", help="Directory for results" )
+        parser.add_option( "-f", "--full-report", dest="fullreport", action="store_true", default=False )
+        parser.add_option( "-n", "--dry-run", dest="write_files", action="store_false", default=True )
+        parser.add_option( "-v", "--verbose", dest="verbose", action="store_true", default=False )
+        parser.add_option( "-d", "--debug", dest="debug", action="store_true", default=False )
+
+        options, dummy_args = parser.parse_args()
+
+        self.year = int( options.year )
+        self.type = options.type
+        self.input = options.input
+        self.output = options.output
+        self.fullreport = options.fullreport
+        self.write_files = options.write_files
+        self.verbose = options.verbose
+        self.debug = options.debug
+
+        if self.debug:
+            logging.root.setLevel( logging.DEBUG )
+        elif self.verbose:
+            logging.root.setLevel( logging.INFO )
+        else:
+            logging.root.setLevel( logging.WARN )
 
     def load_tourney_codes( self ):
         """
@@ -114,6 +154,15 @@ class WbcMetadata( object ):
             self.others.append( other )
             self.special.append( c )
             self.names[ c ] = d
+
+    def load_preview_index( self ):
+        """
+        Load all of the links to the event previews and map them to event codes
+        """
+
+        LOGGER.debug( 'Loading event preview index' )
+
+
 
     def check_date( self, event_date ):
         """Check to see if this event date is the earliest event date seen so far"""
