@@ -903,8 +903,10 @@ class WbcPreview( object ):
     def __init__( self, metadata ):
         self.meta = metadata
 
+        LOGGER.info( "Loading event previews..." )
+
         for code, url in self.meta.url.items():
-            LOGGER.info( "Loading event preview for %s", code )
+            LOGGER.debug( "Loading event preview for %s", code )
             page = parse_url( url )
             if page:
                 t = WbcPreview.Tourney( self.meta, code, self.meta.names[ code ], page )

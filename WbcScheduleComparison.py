@@ -57,21 +57,14 @@ class ScheduleComparer( object ):
             preview_extras = set()
             preview_omited = set()
 
-        add_space = False
         if len( allinone_extras ):
             LOGGER.error( 'Extra events present in All-in-One: %s', allinone_extras )
-            add_space = True
         if len( allinone_omited ):
             LOGGER.error( 'Events omitted in All-in-One: %s', allinone_omited )
-            add_space = True
         if len( preview_extras ):
             LOGGER.error( 'Extra events present in Preview: %s', preview_extras )
-            add_space = True
         if len( preview_omited ):
             LOGGER.error( 'Events omitted in Preview: %s', preview_omited )
-            add_space = True
-        if add_space:
-            LOGGER.error( '' )
 
         code_set = schedule_key_set
         if self.allinone.valid:
