@@ -62,9 +62,7 @@ if __name__ == '__main__':
     wbc_allinone = WbcAllInOne( meta )
 
     # Parse the WBC Preview
-    # TODO: Move this to meta
-    names = dict( [( key_code, val_name ) for key_code, val_name in meta.names.items() ] )
-    wbc_preview = WbcPreview( meta, names )
+    wbc_preview = WbcPreview( meta )
 
     # Compare the event calendars with the WBC All-in-One schedule and the preview
     comparer = ScheduleComparer( meta, wbc_schedule, wbc_allinone, wbc_preview )

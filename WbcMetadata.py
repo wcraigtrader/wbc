@@ -20,6 +20,8 @@ import logging
 import os
 import pytz
 
+from WbcUtility import parse_url
+
 LOGGER = logging.getLogger( 'WbcMetaData' )
 
 #----- WBC Meta Data ---------------------------------------------------------
@@ -38,8 +40,10 @@ class WbcMetadata( object ):
     OTHERCODES = os.path.join( "meta", "wbc-other-codes.csv" )
 
     PREVIEW_INDEX_URL = "http://boardgamers.org/yearbkex%d/"
-    PREVIEW_PAGE_URL = "http://boardgamers.org/yearbkex/%spge.htm"
-    MISCODES = { 'gmb' : 'GBM', 'MRA': 'MMA', 'mma' : 'MRA', 'kot' : 'KOT' }
+    PREVIEW_PAGE_URL = "http://boardgamers.org/yearbkex%d/%spge.htm"
+
+    # Bad code in event preview index -> actual event code
+    MISCODES = { 'gmb' : 'GBM', }
 
     others = []  # List of non-tournament event matching data
     special = []  # List of non-tournament event codes
@@ -51,7 +55,7 @@ class WbcMetadata( object ):
     durations = {}  # Special durations for events that have them
     grognards = {}  # Special durations for grognard events that have them
     playlate = {}  # Flag for events that may run past midnight
-    preview = {}  # URL for event preview for this event code
+    url = {}  # Code -> URL for event preview for this event code
 
     first_day = None  # First calendar day for this year's convention
 
@@ -158,7 +162,29 @@ class WbcMetadata( object ):
 
         LOGGER.debug( 'Loading event preview index' )
 
+        yy = self.year % 100
 
+        index = parse_url( self.PREVIEW_INDEX_URL % ( yy, ) )
+        if not index:
+            LOGGER.error( 'Unable to load Preview index' )
+            return
+
+        # For each event in the drop down list ...
+        for option in index.findAll( 'option' ):
+            value = option['value']
+            if value in [ '', 'none' ]:
+                continue
+
+            pagecode = value[0:3]
+            if pagecode in [ 'jnr', 'pre' ]:
+                continue
+
+            # Map page codes to event codes
+            code = self.MISCODES[ pagecode ] if self.MISCODES.has_key( pagecode ) else pagecode.upper()
+
+            # Construct event preview URL
+            self.url[ code ] = self.PREVIEW_PAGE_URL % ( yy, pagecode )
+            LOGGER.debug( '%s: %s', code, self.url[code] )
 
     def check_date( self, event_date ):
         """Check to see if this event date is the earliest event date seen so far"""

@@ -914,48 +914,16 @@ class WbcPreview( object ):
 
             return room
 
-    def __init__( self, metadata, event_names ):
+    def __init__( self, metadata ):
         self.meta = metadata
 
-        self.names = event_names  # mapping of codes to event names
-        self.codes = event_names.keys()
-        self.codes.sort()
-
-        self.yy = self.meta.year % 100
-        if self.meta.year != self.meta.this_year:
-            self.PAGE_URL = "http://boardgamers.org/yearbkex%d/%%spge.htm" % ( self.yy, )
-
-        LOGGER.info( 'Loading Preview schedule' )
-        index = parse_url( self.INDEX_URL % ( self.yy, ) )
-        if not index:
-            LOGGER.error( 'Unable to load Preview index' )
-
-        for option in index.findAll( 'option' ):
-            value = option['value']
-            if value == 'none' or value == '' or value == 'jnrpge.htm' or value in 'precon.htm':
-                continue
-            pagecode = value[0:3]
-            self.load_preview_page( pagecode )
+        for code, url in self.meta.url.items():
+            LOGGER.info( "Loading event preview for %s", code )
+            page = parse_url( url )
+            if page:
+                t = WbcPreview.Tourney( self.meta, code, self.meta.names[ code ], page )
+                self.events[ code ] = t.events
+            else:
+                LOGGER.error( 'Unable to load event preview for %s from %s'. code, url )
 
         self.valid = True
-
-    def load_preview_page( self, pagecode ):
-        """Load and parse the preview page for a single tournament.
-        As is the case with all of the WBC web pages, the HTML is ugly and malformed.
-        """
-
-        LOGGER.debug( 'Loading preview for %s', pagecode )
-
-        # Map page codes to event codes
-        code = self.codemap[ pagecode ] if self.codemap.has_key( pagecode ) else pagecode.upper()
-
-        # Load page
-        url = self.PAGE_URL % pagecode
-        page = parse_url( url )
-        if not page:
-            LOGGER.error( "Unable to load %s for [%s:%s]", url, pagecode, code )
-            return
-
-        t = WbcPreview.Tourney( self.meta, code, self.names[ code ], page )
-        self.events[ code ] = t.events
-
