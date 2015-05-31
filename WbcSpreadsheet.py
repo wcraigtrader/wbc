@@ -394,6 +394,8 @@ class WbcSchedule( object ):
     tournaments = None
     meta = None
 
+    ICONS = [ 'ical.png', 'gcal16.png' ]
+
     def __init__( self, metadata ):
         """
         Initialize a schedule
@@ -878,8 +880,9 @@ class WbcSchedule( object ):
         os.makedirs( self.meta.output )
 
         # Copy needed files to the destination
-        if os.path.exists( 'ical.gif' ):
-            shutil.copy( 'ical.gif', self.meta.output )
+        for filename in self.ICONS:
+            if os.path.exists( filename ):
+                shutil.copy( filename, self.meta.output )
 
         # For all of the event calendars
         for code, calendar in self.calendars.items():
@@ -923,6 +926,7 @@ class WbcSchedule( object ):
             writer.writeheader()
             for event in self.everything.subcomponents:
                 row = eval( event['COMMENT'] )
+                row['Continuous'] = 'Y' if row['Continuous'] else ''
                 row['Event'] = event['SUMMARY']
                 row['GM'] = event['CONTACT']
                 row['Location'] = event['LOCATION']
@@ -1019,7 +1023,7 @@ class WbcSchedule( object ):
             a['href'] = '#'
             a['onclick'] = "webcal('%s');" % filename
             img = parser.new_tag( 'img' )
-            img['src'] = 'ical.gif'
+            img['src'] = cls.ICONS[0]
             a.insert( len( a ), img )
             td.insert( len( td ), a )
 
@@ -1079,7 +1083,7 @@ class WbcSchedule( object ):
         a['href'] = '#'
         a['onclick'] = "webcal('%s');" % filename
         img = parser.new_tag( 'img' )
-        img['src'] = 'ical.gif'
+        img['src'] = cls.ICONS[ 0 ]
         a.insert( len( a ), img )
         li.insert( len( li ), a )
 
