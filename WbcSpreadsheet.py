@@ -17,6 +17,7 @@ from bs4 import BeautifulSoup
 from datetime import date, datetime, time, timedelta
 from functools import total_ordering
 from icalendar import Calendar, Event
+from icalendar.prop import vDatetime, vDuration
 import codecs
 import csv
 import logging
@@ -40,7 +41,7 @@ class WbcRow( object ):
     WBC schedule spreadsheet. This line may result in a dozen or more calendar events.
     """
 
-    FIELDS = [ 'Date', 'Time', 'Event', 'PRIZE', 'CLASS', 'Format', 'Duration', 'Continuous', 'GM', 'Location', 'Code' ]
+    FIELDS = [ 'Date', 'Time', 'Event', 'Prize', 'Class', 'Format', 'Duration', 'Continuous', 'GM', 'Location', 'Code' ]
 
     def __init__( self, schedule, line, *args ):
 
@@ -59,6 +60,7 @@ class WbcRow( object ):
         self.gm = None
 
         self.type = ''
+        self.rtype = ''
         self.rounds = 0
         self.freeformat = False
         self.grognard = False
@@ -122,8 +124,16 @@ class WbcRow( object ):
         row = dict( [ ( k, getattr( self, k ) ) for k in self.FIELDS ] )
         row['Date'] = self.date.strftime( '%Y-%m-%d' )
         row['Continuous'] = 'Y' if row['Continuous'] else ''
-        row['Event'] = "%s %s" % ( self.name, self.type )
+        event = self.name
+        event = event + ' ' + self.rtype if self.rtype else event
+        event = event + ' ' + self.type if self.type else event
+        row['Event'] = event
         return row
+
+    @property
+    def extra( self ):
+        extra = dict( [ ( k, getattr( self, k ) ) for k in ['Code', 'Prize', 'Class', 'Format', 'Continuous']] )
+        return extra
 
     def checkrounds( self ):
         """Check the current state of the event name to see if it describes a Heat or Round number"""
@@ -136,6 +146,7 @@ class WbcRow( object ):
             if t == "R":
                 self.start = int( n )
                 self.rounds = int( m )
+                self.rtype = text.strip()
                 self.name = self.name[:-len( text )].strip()
             elif t == "H" or t == '':
                 self.type = self.type + ' ' + text
@@ -798,10 +809,8 @@ class WbcSchedule( object ):
 
         url = self.meta.url[entry.code] if self.meta.url.has_key( entry.code ) else ''
 
-        summary = entry.code + ': ' + name
         description = entry.code + ': ' + name
         if entry.format:
-            summary += ' (' + entry.format + ')'
             description += ' (' + entry.format + ')'
         if entry.continuous:
             description += ' Continuous'
@@ -811,11 +820,8 @@ class WbcSchedule( object ):
         localized_start = self.meta.TZ.localize( start )
         utc_start = localized_start.astimezone( self.meta.UTC )
 
-        clazz = getattr( entry, 'class' )
-        cont = 'Y' if entry.continuous else ''
-
         e = Event()
-        e.add( 'SUMMARY', summary )
+        e.add( 'SUMMARY', name )
         e.add( 'DESCRIPTION', description )
         e.add( 'DTSTART', utc_start )
         e.add( 'DURATION', duration )
@@ -823,7 +829,7 @@ class WbcSchedule( object ):
         e.add( 'CONTACT', entry.gm )
         e.add( 'URL', url )
         e.add( 'LAST-MODIFIED', self.meta.now )
-        e.add( 'COMMENT', "Class,%s|Format,%s|Continuous,%s" % ( clazz, entry.format, cont ) )
+        e.add( 'COMMENT', repr( entry.extra ) )
 
         if replace:
             self.add_or_replace_event( calendar, e, altname )
@@ -910,6 +916,23 @@ class WbcSchedule( object ):
             writer = csv.DictWriter( f, WbcRow.FIELDS, extrasaction='ignore' )
             writer.writeheader()
             writer.writerows( [ e.row for e in data ] )
+
+        details_file = os.path.join( self.meta.output, "details.csv" )
+        with codecs.open( details_file, "w", 'utf-8' ) as f:
+            writer = csv.DictWriter( f, WbcRow.FIELDS, extrasaction='ignore' )
+            writer.writeheader()
+            for event in self.everything.subcomponents:
+                row = eval( event['COMMENT'] )
+                row['Event'] = event['SUMMARY']
+                row['GM'] = event['CONTACT']
+                row['Location'] = event['LOCATION']
+                sdatetime = event.decoded( 'DTSTART' ).astimezone( self.meta.TZ )
+                row['Date'] = sdatetime.date().strftime( '%Y-%m-%d' )
+                stime = sdatetime.time()
+                row['Time'] = stime.hour * 1.0 + stime.minute / 60.0
+                duration = event.decoded( 'DURATION' )
+                row['Duration'] = duration.total_seconds() / 3600.0
+                writer.writerow( row )
 
     def write_index_page( self ):
         """
