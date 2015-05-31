@@ -1029,6 +1029,15 @@ class WbcSchedule( object ):
 
             a = parser.new_tag( 'a' )
             a['class'] = 'eventlink'
+            a['href'] = '#'
+            a['onclick'] = "gcal('%s');" % filename
+            img = parser.new_tag( 'img' )
+            img['src'] = cls.ICONS[1]
+            a.insert( len( a ), img )
+            td.insert( len( td ), a )
+
+            a = parser.new_tag( 'a' )
+            a['class'] = 'eventlink'
             a['href'] = filename
             a.insert( 0, parser.new_string( "%s" % label ) )
             td.insert( len( td ), a )
@@ -1084,6 +1093,15 @@ class WbcSchedule( object ):
         a['onclick'] = "webcal('%s');" % filename
         img = parser.new_tag( 'img' )
         img['src'] = cls.ICONS[ 0 ]
+        a.insert( len( a ), img )
+        li.insert( len( li ), a )
+
+        a = parser.new_tag( 'a' )
+        a['class'] = 'eventlink'
+        a['href'] = '#'
+        a['onclick'] = "gcal('%s');" % filename
+        img = parser.new_tag( 'img' )
+        img['src'] = cls.ICONS[ 1 ]
         a.insert( len( a ), img )
         li.insert( len( li ), a )
 
