@@ -116,13 +116,13 @@ class WbcRow( object ):
 
     def __repr__( self ):
         return "%s @ %s %s on %s" % ( self.event, self.date, self.time, self.line )
-#        return repr( self.__dict__ )
 
     @property
     def row( self ):
         row = dict( [ ( k, getattr( self, k ) ) for k in self.FIELDS ] )
         row['Date'] = self.date.strftime( '%Y-%m-%d' )
         row['Continuous'] = 'Y' if row['Continuous'] else ''
+        row['Event'] = "%s %s" % ( self.name, self.type )
         return row
 
     def checkrounds( self ):
@@ -521,57 +521,57 @@ class WbcSchedule( object ):
                 daily = self.get_or_create_daily_calendar( event['DTSTART'] )
                 daily.subcomponents.append( event )
 
-    def process_event( self, event ):
+    def process_event( self, entry ):
         """
         For a spreadsheet entry, generate calendar events as follows:
 
-        If the event is WAW,
+        If the entry is WAW,
             treat it like an all-week free-format event.
-        If the event is free-format, and a grognard,
+        If the entry is free-format, and a grognard,
             it's an all-week event, but use the grognard duration from the event codes.
-        If the event is free-format, and a Swiss Elimination, and it has rounds,
+        If the entry is free-format, and a Swiss Elimination, and it has rounds,
             it's an all-week event, but use the duration from the event codes.
-        If the event has rounds,
+        If the entry has rounds,
             add calendar events for each round.
-        If the event is marked as continuous, and it's marked 'HMSE',
+        If the entry is marked as continuous, and it's marked 'HMSE',
            there's no clue as to how many actual heats there are, so just add one event.
-        If the event is marked as continuous,
+        If the entry is marked as continuous,
             add as many events as there are types coded.
         Otherwise,
-           add a single event for the event.
+           add a single event for the entry.
         """
 
-        calendar = self.get_or_create_event_calendar( event.code )
+        calendar = self.get_or_create_event_calendar( entry.code )
 
-        # This test is for debugging purposes, and is only good for an event that was sucessfully coded
-        if self.meta.debug and event.code in [ 'TTN' ]:
+        # This test is for debugging purposes, and is only good for an entry that was sucessfully coded
+        if self.meta.debug and entry.code in [ 'TTN' ]:
             pass
 
-        if event.code == 'WAW':
-            self.process_all_week_event( calendar, event )
-        elif event.freeformat and event.grognard:
-            self.process_freeformat_grognard_event( calendar, event )
-        elif event.freeformat and event.format == 'SwEl' and event.rounds:
-            self.process_freeformat_swel_event( calendar, event )
-        elif event.rounds:
-            self.process_event_with_rounds( calendar, event )
-        elif event.continuous and event.format == 'HMSE':
-            self.process_normal_event( calendar, event )
-        elif event.continuous:
-            self.process_continuous_event( calendar, event )
+        if entry.code == 'WAW':
+            self.process_all_week_entry( calendar, entry )
+        elif entry.freeformat and entry.grognard:
+            self.process_freeformat_grognard_entry( calendar, entry )
+        elif entry.freeformat and entry.format == 'SwEl' and entry.rounds:
+            self.process_freeformat_swel_entry( calendar, entry )
+        elif entry.rounds:
+            self.process_entry_with_rounds( calendar, entry )
+        elif entry.continuous and entry.format == 'HMSE':
+            self.process_normal_entry( calendar, entry )
+        elif entry.continuous:
+            self.process_continuous_event( calendar, entry )
         else:
-            self.process_normal_event( calendar, event )
+            self.process_normal_entry( calendar, entry )
 
-    def process_normal_event( self, calendar, event ):
+    def process_normal_entry( self, calendar, entry ):
         """
         Process a spreadsheet entry that maps to a single event.
         """
-        name = event.name + ' ' + event.type
-        alternative = self.alternate_round_name( event )
+        name = entry.name + ' ' + entry.type
+        alternative = self.alternate_round_name( entry )
         if alternative:
-            self.add_event( calendar, event, name=name, altname=alternative )
+            self.add_event( calendar, entry, name=name, altname=alternative )
         else:
-            self.add_event( calendar, event, name=name, replace=False )
+            self.add_event( calendar, entry, name=name, replace=False )
 
     def process_continuous_event( self, calendar, entry ):
         """
@@ -584,7 +584,7 @@ class WbcSchedule( object ):
             self.add_event( calendar, entry, start=start, name=name, altname=alternative )
             start = self.calculate_next_start_time( entry, start )
 
-    def process_event_with_rounds( self, calendar, entry ):
+    def process_entry_with_rounds( self, calendar, entry ):
         """
         Process multiple back-to-back rounds
         """
@@ -644,7 +644,7 @@ class WbcSchedule( object ):
 
         return next_start
 
-    def process_freeformat_swel_event( self, calendar, entry ):
+    def process_freeformat_swel_entry( self, calendar, entry ):
         """
         Process an entry that is a event with no fixed schedule.
 
@@ -655,9 +655,9 @@ class WbcSchedule( object ):
 
         duration = self.meta.durations[entry.code] if self.meta.durations.has_key( entry.code ) else 51
         label = "%s R%s/%s" % ( entry.name, 1, entry.rounds )
-        self.process_all_week_event( calendar, entry, duration, label )
+        self.process_all_week_entry( calendar, entry, duration, label )
 
-    def process_freeformat_grognard_event( self, calendar, entry ):
+    def process_freeformat_grognard_entry( self, calendar, entry ):
         """
         Process an entry that is a pre-con event with no fixed schedule.
 
@@ -671,9 +671,9 @@ class WbcSchedule( object ):
         # FIXME: This is wrong for BWD, which starts at 10am on the PC days, not 9am
         duration = self.meta.grognards[entry.code] if self.meta.grognards.has_key( entry.code ) else 49
         label = "%s PC R%s/%s" % ( entry.name, 1, entry.rounds )
-        self.process_all_week_event( calendar, entry, duration, label )
+        self.process_all_week_entry( calendar, entry, duration, label )
 
-    def process_all_week_event( self, calendar, entry, length=None, label=None ):
+    def process_all_week_entry( self, calendar, entry, length=None, label=None ):
         """
         Process an entry that runs continuously all week long.
         """
@@ -730,14 +730,14 @@ class WbcSchedule( object ):
             return self.calendars[ code ]
 
         description = "%s %s: %s" % ( self.prodid, code, self.meta.names[code] )
-        url = 'http://boardgamers.org/yearbkex/%spge.htm' % code.lower()
 
         calendar = Calendar()
         calendar.add( 'VERSION', '2.0' )
         calendar.add( 'PRODID', '-//%s %s//ct7//' % ( self.prodid, code ) )
         calendar.add( 'SUMMARY', self.meta.names[ code ] )
         calendar.add( 'DESCRIPTION', description )
-        calendar.add( 'URL', url )
+        if self.meta.url.has_key( code ):
+            calendar.add( 'URL', self.meta.url[ code ] )
 
         self.calendars[ code ] = calendar
 
@@ -796,16 +796,34 @@ class WbcSchedule( object ):
         start = round_up_datetime( start )
         duration = duration if duration else entry.length
 
+        url = self.meta.url[entry.code] if self.meta.url.has_key( entry.code ) else ''
+
+        summary = entry.code + ': ' + name
+        description = entry.code + ': ' + name
+        if entry.format:
+            summary += ' (' + entry.format + ')'
+            description += ' (' + entry.format + ')'
+        if entry.continuous:
+            description += ' Continuous'
+        if url:
+            description += '\nPreview: ' + url
+
         localized_start = self.meta.TZ.localize( start )
         utc_start = localized_start.astimezone( self.meta.UTC )
 
+        clazz = getattr( entry, 'class' )
+        cont = 'Y' if entry.continuous else ''
+
         e = Event()
-        e.add( 'SUMMARY', name )
+        e.add( 'SUMMARY', summary )
+        e.add( 'DESCRIPTION', description )
         e.add( 'DTSTART', utc_start )
         e.add( 'DURATION', duration )
         e.add( 'LOCATION', entry.location )
         e.add( 'CONTACT', entry.gm )
+        e.add( 'URL', url )
         e.add( 'LAST-MODIFIED', self.meta.now )
+        e.add( 'COMMENT', "Class,%s|Format,%s|Continuous,%s" % ( clazz, entry.format, cont ) )
 
         if replace:
             self.add_or_replace_event( calendar, e, altname )
