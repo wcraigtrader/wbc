@@ -17,7 +17,6 @@ from bs4 import BeautifulSoup
 from datetime import date, datetime, time, timedelta
 from functools import total_ordering
 from icalendar import Calendar, Event
-from icalendar.prop import vDatetime, vDuration
 import codecs
 import csv
 import logging
@@ -27,7 +26,7 @@ import shutil
 import unicodedata
 import xlrd
 
-from WbcUtility import round_up_datetime, round_up_timedelta, asLocal, asGlobal, localize, globalize
+from WbcUtility import round_up_datetime, round_up_timedelta, asLocal, globalize
 
 
 LOGGER = logging.getLogger( 'WbcSpreadsheet' )
@@ -369,7 +368,7 @@ class WbcSchedule( object ):
     valid = False
 
     # Data file names
-    TEMPLATE = "index-template.html"
+    TEMPLATE = "resources/index-template.html"
 
     # Recognized event flags
     FLAVOR = [ 'AFC', 'NFC', 'FF', 'Circus', 'DDerby', 'Draft', 'Playoffs', 'FF' ]
@@ -878,8 +877,9 @@ class WbcSchedule( object ):
 
         # Copy needed files to the destination
         for filename in self.ICONS:
-            if os.path.exists( filename ):
-                shutil.copy( filename, self.meta.output )
+            source = os.path.join( "resources", filename )
+            if os.path.exists( source ):
+                shutil.copy( source, self.meta.output )
 
         # For all of the event calendars
         for code, calendar in self.calendars.items():

@@ -28,7 +28,7 @@ LOGGER = logging.getLogger( 'WbcScheduleComparison' )
 class ScheduleComparer( object ):
     """This class knows enough about the different schedule sources to compare events"""
 
-    TEMPLATE = 'report-template.html'
+    TEMPLATE = 'resources/report-template.html'
 
     def __init__( self, metadata, s, a, p=None ):
         self.meta = metadata
