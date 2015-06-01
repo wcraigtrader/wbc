@@ -18,7 +18,8 @@ from datetime import timedelta
 import logging
 import re
 
-from WbcUtility import parse_url
+from WbcUtility import parse_url, localize
+
 
 LOGGER = logging.getLogger( 'WbcPreview' )
 
@@ -772,24 +773,24 @@ class WbcPreview( object ):
                             # handle events immediately
                             dtime = midnight + etime
                             room = self.find_room( p.last_actual, dtime, p.last_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, self.meta.TZ.localize( dtime ), room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, localize( dtime ), room )
                             self.add_event( e )
 
                     elif p.match_single_event_time( awards_are_events=awards_are_events ):
                         if self.code == 'PDT' and p.last_name.endswith( 'FC' ):
                             dtime = midnight + p.last_start
                             room = self.find_room( p.last_actual, dtime, self.draft_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', self.meta.TZ.localize( dtime ), room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', localize( dtime ), room )
                             self.add_event( e )
 
                             dtime = dtime + timedelta( hours=1 )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, self.meta.TZ.localize( dtime ), self.default_room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, localize( dtime ), self.default_room )
                             self.add_event( e )
 
                         else:
                             dtime = midnight + p.last_start
                             room = self.find_room( p.last_actual, dtime, p.last_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, self.meta.TZ.localize( dtime ), room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, localize( dtime ), room )
                             self.add_event( e )
 
                     else:
@@ -842,7 +843,7 @@ class WbcPreview( object ):
                             # handle events immediately
                             dtime = midnight + etime
                             room = self.find_room( p.last_actual, dtime, p.last_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, self.meta.TZ.localize( dtime ), room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, localize( dtime ), room )
                             self.add_event( e )
 
                     elif p.match_single_event_time( awards_are_events=awards_are_events ):
@@ -850,17 +851,17 @@ class WbcPreview( object ):
                             # handle demos immediately
                             dtime = midnight + p.last_start
                             room = self.find_room( p.last_actual, dtime, p.last_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, self.meta.TZ.localize( dtime ), room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, localize( dtime ), room )
                             self.add_event( e )
 
                         elif self.code == 'PDT' and p.last_name.endswith( 'FC' ):
                             dtime = midnight + p.last_start
                             room = self.find_room( p.last_actual, dtime, self.draft_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', self.meta.TZ.localize( dtime ), room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', localize( dtime ), room )
                             self.add_event( e )
 
                             dtime = dtime + timedelta( hours=1 )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, self.meta.TZ.localize( dtime ), self.default_room )
+                            e = WbcPreview.Event( self.code, self.name, p.last_name, localize( dtime ), self.default_room )
                             self.add_event( e )
 
                         else:
@@ -879,7 +880,7 @@ class WbcPreview( object ):
                         # add event to actual event list
                         dtime = midnight + pevent.time
                         room = self.find_room( pevent.actual, dtime, pevent.location )
-                        e = WbcPreview.Event( self.code, self.name, pevent.type, self.meta.TZ.localize( dtime ), room )
+                        e = WbcPreview.Event( self.code, self.name, pevent.type, localize( dtime ), room )
                         self.add_event( e )
 
             self.events.sort()

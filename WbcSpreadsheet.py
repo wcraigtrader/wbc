@@ -27,7 +27,7 @@ import shutil
 import unicodedata
 import xlrd
 
-from WbcUtility import round_up_datetime, round_up_timedelta
+from WbcUtility import round_up_datetime, round_up_timedelta, asLocal, asGlobal, localize, globalize
 
 
 LOGGER = logging.getLogger( 'WbcSpreadsheet' )
@@ -819,13 +819,10 @@ class WbcSchedule( object ):
         if url:
             description += '\nPreview: ' + url
 
-        localized_start = self.meta.TZ.localize( start )
-        utc_start = localized_start.astimezone( self.meta.UTC )
-
         e = Event()
         e.add( 'SUMMARY', name )
         e.add( 'DESCRIPTION', description )
-        e.add( 'DTSTART', utc_start )
+        e.add( 'DTSTART', globalize( start ) )
         e.add( 'DURATION', duration )
         e.add( 'LOCATION', entry.location )
         e.add( 'CONTACT', entry.gm )
@@ -930,7 +927,7 @@ class WbcSchedule( object ):
                 row['Event'] = event['SUMMARY']
                 row['GM'] = event['CONTACT']
                 row['Location'] = event['LOCATION']
-                sdatetime = event.decoded( 'DTSTART' ).astimezone( self.meta.TZ )
+                sdatetime = asLocal( event.decoded( 'DTSTART' ) )
                 row['Date'] = sdatetime.date().strftime( '%Y-%m-%d' )
                 stime = sdatetime.time()
                 row['Time'] = stime.hour * 1.0 + stime.minute / 60.0

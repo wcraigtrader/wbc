@@ -18,9 +18,8 @@ from optparse import OptionParser
 import csv
 import logging
 import os
-import pytz
 
-from WbcUtility import parse_url
+from WbcUtility import parse_url, TZ
 
 LOGGER = logging.getLogger( 'WbcMetaData' )
 
@@ -29,8 +28,6 @@ LOGGER = logging.getLogger( 'WbcMetaData' )
 class WbcMetadata( object ):
     """Load metadata about events that is not available from other sources"""
 
-    TZ = pytz.timezone( 'America/New_York' )  # Tournament timezone
-    UTC = pytz.timezone( 'UTC' )  # UTC timezone (for iCal)
 
     now = datetime.now( TZ )
     this_year = now.year

@@ -18,6 +18,7 @@ from bs4 import BeautifulSoup
 from hashlib import md5 as hash
 import logging
 import os
+import pytz
 import urllib2
 
 LOGGER = logging.getLogger( 'WbcUtility' )
@@ -57,12 +58,33 @@ def parse_url( url ):
 
 #----- Time Functions --------------------------------------------------------
 
+TZ = pytz.timezone( 'America/New_York' )  # Tournament timezone
+UTC = pytz.timezone( 'UTC' )  # UTC timezone (for iCal)
+
+def asLocal( timestamp ):
+    """Return the zoned timestamp, assuming local timezone"""
+    return timestamp.astimezone( TZ )
+
+def asGlobal( timestamp ):
+    """Return the zoned timestamp, assuming UTC timezone"""
+    return timestamp.astimezone( UTC )
+
+def localize( timestamp ):
+    """Return the unzoned timestamp, as a zoned timestamp, assuming local timezone"""
+    return TZ.localize( timestamp )
+
+def globalize( timestamp ):
+    """Return the unzoned timestamp, as a zoned timestamp, assuming UTC timezone"""
+    return TZ.localize( timestamp ).astimezone( UTC )
+
 def round_up_datetime( timestamp ):
+    """Round up the timestamp to the nearest minute"""
     ts = timestamp + timedelta( seconds=30 )
     ts = ts.replace( second=0, microsecond=0 )
     return ts
 
 def round_up_timedelta( duration ):
+    """Round up the duration to the nearest minute"""
     seconds = duration.total_seconds()
     seconds = 60 * int( ( seconds + 30 ) / 60 )
     return timedelta( seconds=seconds )

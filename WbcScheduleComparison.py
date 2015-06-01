@@ -18,6 +18,9 @@ import codecs
 import logging
 import os
 
+from WbcUtility import asLocal
+
+
 LOGGER = logging.getLogger( 'WbcScheduleComparison' )
 
 #----- Schedule Comparison ---------------------------------------------------
@@ -113,9 +116,9 @@ class ScheduleComparer( object ):
         cal_events = self.schedule.calendars[code].subcomponents
 
         # Find all of the unique times for any events
-        ai1_timemap = dict( [ ( e.time.astimezone( self.meta.TZ ), e ) for e in ai1_events ] )
-        prv_timemap = dict( [ ( e.time.astimezone( self.meta.TZ ), e ) for e in prv_events ] )
-        cal_timemap = dict( [ ( e['dtstart'].dt.astimezone( self.meta.TZ ), e ) for e in cal_events ] )
+        ai1_timemap = dict( [ ( asLocal( e.time ), e ) for e in ai1_events ] )
+        prv_timemap = dict( [ ( asLocal( e.time ), e ) for e in prv_events ] )
+        cal_timemap = dict( [ ( asLocal( e.decoded( 'dtstart' ) ), e ) for e in cal_events ] )
         time_set = set( ai1_timemap.keys() ) | set( prv_timemap.keys() ) | set( cal_timemap.keys() )
         time_list = list( time_set )
         time_list.sort()
@@ -304,7 +307,7 @@ class ScheduleComparer( object ):
     def ai1_date_loc( self, ev ):
         """Generate a summary of an all-in-one event for comparer purposes"""
 
-        start_time = ev.time.astimezone( self.meta.TZ )
+        start_time = asLocal( ev.time )
         location = ev.location
         location = 'Terrace' if location == 'Pt' else location
         return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M' ), location )
@@ -312,7 +315,7 @@ class ScheduleComparer( object ):
     def prv_date_loc( self, ev ):
         """Generate a summary of an preview event for comparer purposes"""
 
-        start_time = ev.time.astimezone( self.meta.TZ )
+        start_time = asLocal( ev.time )
         location = ev.location
         location = 'Terrace' if location.startswith( 'Terr' ) else location
         return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M' ), location )
@@ -320,7 +323,7 @@ class ScheduleComparer( object ):
     def cal_date_loc( self, sc ):
         """Generate a summary of a calendar event for comparer purposes"""
 
-        start_time = sc['dtstart'].dt.astimezone( self.meta.TZ )
+        start_time = asLocal( sc.decoded( 'dtstart' ) )
         location = sc['location']
         location = 'Terrace' if location.startswith( 'Terrace' ) else location
         return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M' ), location )
