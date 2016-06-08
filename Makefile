@@ -2,10 +2,10 @@
 
 SITE=http://boardgamers.org/downloads/
 SCHEDULE=schedule
-YEAR=2015
+YEAR=2016
 EXT=.xlsx
-# REMOTE=trader.name:/data/web/trader/wbc
-REMOTE=wbc.trader.name:/var/www/wbc/schedule
+REMOTE=trader.name:/data/web/trader/wbc
+# REMOTE=wbc.trader.name:/var/www/wbc/schedule
 
 SPREADSHEET=$(SCHEDULE)$(YEAR)$(EXT)
 OLD_SPREADSHEET=$(SCHEDULE)$(YEAR).old
