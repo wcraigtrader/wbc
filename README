@@ -8,9 +8,17 @@ course of 9 days.  While the WBC produces their event schedule in many forms,
 they don't produce iCal-style web calendars for the tournaments.  This program
 is intended to fill the gap.
 
+PREREQUISITES:
+
+* BeautifulSoup4
+* icalendar
+* requests
+* requests_cache
+* xlrd
+
 USAGE:
 
-Install the prerequisits and then run WBC from the command line:
+Install the prerequisites and then run WBC from the command line:
 
 	mkdir build
 	python WBC.py

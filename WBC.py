@@ -1,6 +1,6 @@
 #! /usr/bin/env python2.7
 
-#----- Copyright (c) 2010-2015 by W. Craig Trader ---------------------------------
+#----- Copyright (c) 2010-2016 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -30,8 +30,6 @@ from WbcSpreadsheet import WbcSchedule
 
 logging.basicConfig( level=logging.INFO )
 LOGGER = logging.getLogger( 'WBC' )
-
-#----- Time Constants --------------------------------------------------------
 
 #----- Real work happens here ------------------------------------------------
 

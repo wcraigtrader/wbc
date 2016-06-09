@@ -1,4 +1,4 @@
-#----- Copyright (c) 2010-2015 by W. Craig Trader ---------------------------------
+#----- Copyright (c) 2010-2016 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -26,7 +26,7 @@ import shutil
 import unicodedata
 import xlrd
 
-from WbcUtility import round_up_datetime, round_up_timedelta, asLocal, globalize
+from WbcUtility import round_up_datetime, round_up_timedelta, as_local, globalize
 
 
 LOGGER = logging.getLogger( 'WbcSpreadsheet' )
@@ -927,7 +927,7 @@ class WbcSchedule( object ):
                 row['Event'] = event['SUMMARY']
                 row['GM'] = event['CONTACT']
                 row['Location'] = event['LOCATION']
-                sdatetime = asLocal( event.decoded( 'DTSTART' ) )
+                sdatetime = as_local( event.decoded( 'DTSTART' ) )
                 row['Date'] = sdatetime.date().strftime( '%Y-%m-%d' )
                 stime = sdatetime.time()
                 row['Time'] = stime.hour * 1.0 + stime.minute / 60.0
@@ -946,7 +946,7 @@ class WbcSchedule( object ):
         with open( self.TEMPLATE, "r" ) as f:
             template = f.read()
 
-        parser = BeautifulSoup( template )
+        parser = BeautifulSoup( template, 'lxml' )
 
         # Locate insertion points
         title = parser.find( 'title' )
