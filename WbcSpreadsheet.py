@@ -69,15 +69,15 @@ class WbcRow( object ):
         self.readrow( *args )
 
         # This test is for debugging purposes; string search on the spreadsheet event name
-        if 0 and self.name.find( 'Vendors' ) >= 0:
+        if 0 and self.line in [331,332,333,337,339,340,341,346,351,353]:
             pass
 
         # Check for errors that will throw exceptions later
-        if self.gm == None:
+        if self.gm is None:
             LOGGER.warning( 'Missing gm on %s', self )
             self.gm = ''
 
-        if self.duration == None:
+        if self.duration is None:
             LOGGER.warning( 'Missing duration on %s', self )
             self.duration = '0'
 
@@ -96,13 +96,13 @@ class WbcRow( object ):
 
     @property
     def __key__( self ):
-        return ( self.code, self.datetime, self.name )
+        return self.code, self.datetime, self.name
 
     def __eq__( self, other ):
-        return ( self.__key__ == other.__key__ )
+        return self.__key__ == other.__key__
 
     def __lt__( self, other ):
-        return ( self.__key__ < other.__key__ )
+        return self.__key__ < other.__key__
 
     def __setattr__( self, key, value ):
         k = key.strip().lower()
@@ -178,6 +178,11 @@ class WbcRow( object ):
                     self.grognard = True
                 elif event_type in self.schedule.JUNIOR:
                     self.junior = True
+
+        if self.name.startswith( 'JR ' ):
+            self.type = 'JR ' + self.type
+            self.name = self.name[3:].strip()
+            self.junior = True
 
         self.type = self.type.strip()
 
@@ -372,7 +377,7 @@ class WbcSchedule( object ):
 
     # Recognized event flags
     FLAVOR = [ 'AFC', 'NFC', 'FF', 'Circus', 'DDerby', 'Draft', 'Playoffs', 'FF' ]
-    JUNIOR = [ 'Jr', 'Jr.', 'Junior' ]
+    JUNIOR = [ 'Jr', 'Jr.', 'Junior', 'JR' ]
     TEEN = [ 'Teen' ]
     MENTOR = [ 'Mentoring' ]
     MULTIPLE = ['QF/SF/F', 'QF/SF', 'SF/F' ]

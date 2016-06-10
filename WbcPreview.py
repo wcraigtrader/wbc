@@ -906,6 +906,8 @@ class WbcPreview( object ):
 
         LOGGER.info( "Loading event previews..." )
 
+        return
+
         for code, url in self.meta.url.items():
             LOGGER.debug( "Loading event preview for %s", code )
             page = parse_url( url )
