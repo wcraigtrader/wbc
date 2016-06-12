@@ -18,6 +18,7 @@ from optparse import OptionParser
 import csv
 import logging
 import os
+import re
 
 from bs4 import Tag, NavigableString
 from WbcUtility import parse_url, TZ, normalize
@@ -174,8 +175,12 @@ class WbcMetadata( object ):
         for line in range(0, len(rows), 3): # 3 rows per actual line
             top = list( rows[line].findAll('td'))
             mid = list( rows[line+1].findAll('td'))
-            for column in range(0,7): # Always 8 cells
+            for column in range(0,8): # Always 8 cells
                 link = name = code = None
+
+                if line == 3 and column == 7:
+                    pass
+
                 try:
                     if type( top[column].contents[0] ) == NavigableString:
                         continue # No link, no useful data
@@ -185,7 +190,12 @@ class WbcMetadata( object ):
                         name = normalize( unicode( mid[column].contents[0] ) ).strip( )
                         if name == 'Junior Events':
                             continue
-                        code = normalize( unicode( mid[column].contents[2] ) ).strip( )
+                        m = re.match( "(.*) \((...)\)", name )
+                        if m:
+                            name = normalize( unicode( m.group(1) ) )
+                            code = normalize( unicode( m.group(2) ) )
+                        else:
+                            code = normalize( unicode( mid[column].contents[2] ) ).strip( )
                     else:
                         name = normalize( unicode( mid[column].p.contents[0] ) ).strip( )
                         code = normalize( unicode( mid[column].p.contents[2] ) ).strip()
@@ -199,37 +209,6 @@ class WbcMetadata( object ):
 
                 except Exception as e:
                     LOGGER.debug( "Skipping line %d, column %d: %s" % (line, column, e.message) )
-
-    def load_preview_index_pre2016(self):
-        """
-        Load all of the links to the event previews and map them to event codes
-        """
-
-        LOGGER.debug( 'Loading event preview index' )
-
-        yy = self.year % 100
-
-        index = parse_url( self.PREVIEW_INDEX_URL % (yy,) )
-        if not index:
-            LOGGER.error( 'Unable to load Preview index' )
-            return
-
-        # For each event in the drop down list ...
-        for option in index.findAll( 'option' ):
-            value = option['value']
-            if value in ['', 'none']:
-                continue
-
-            pagecode = value[0:3]
-            if pagecode in ['jnr', 'pre']:
-                continue
-
-            # Map page codes to event codes
-            code = self.MISCODES[pagecode] if self.MISCODES.has_key( pagecode ) else pagecode.upper( )
-
-            # Construct event preview URL
-            self.url[code] = self.PREVIEW_PAGE_URL % (yy, pagecode)
-            LOGGER.debug( '%s: %s', code, self.url[code] )
 
     def check_date(self, event_date):
         """Check to see if this event date is the earliest event date seen so far"""
