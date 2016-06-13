@@ -184,11 +184,11 @@ class Token( object ):
         cls.add_room( 'Exhibit Annex T9', 'Exhibit Annex Table 9', 'Exhibit annex Table 9' )
         cls.add_room( 'Exhibit Hall' )
         cls.add_room( 'Festival Hall', 'Festival' )
-        cls.add_room( 'First Tracks Center', 'Ski Lodge First Tracks Center', 'Ski Lodge Fast Tracks Center' )
+        cls.add_room( 'First Tracks Center', 'Ski Lodge First Tracks Center' )
         cls.add_room( 'First Tracks Poolside', 'Ski Lodge First Tracks Poolside' )
         cls.add_room( 'First Tracks Slopeside', 'Ski Lodge First Tracks Slopeside' )
         cls.add_room( 'Foggy Goggle Center', 'Ski Lodge Foggy Goggle Center' )
-        cls.add_room( 'Foggy Goggle Front', 'Ski Lodge Foggy Goggle Front', 'Ski Lodge Foggie Goggle Front' )
+        cls.add_room( 'Foggy Goggle Front', 'Ski Lodge Foggy Goggle Front' )
         cls.add_room( 'Foggy Goggle Rear', 'Ski Lodge Foggy Goggle Rear' )
         cls.add_room( 'Fox Den' )
         cls.add_room( 'Hemlock' )
@@ -214,6 +214,10 @@ class Token( object ):
         cls.add_room( 'Sunburst Forum' )
         cls.add_room( 'Timberstone' )
         cls.add_room( 'Wintergreen' )
+
+        # Misspelled Room Names
+        cls.add_room( 'Ski Lodge Fast Tracks Center' )
+        cls.add_room( 'Ski Lodge Foggie Goggle Front' )
 
     @classmethod
     def initialize_host_rooms(cls):
