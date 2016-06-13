@@ -137,7 +137,7 @@ class WbcRow( object ):
     def checkrounds( self ):
         """Check the current state of the event name to see if it describes a Heat or Round number"""
 
-        match = re.search( r'([DHR]?)(\d+)[-/](\d+)$', self.name )
+        match = re.search( r'([DSHR]?)(\d+)[-/](\d+)$', self.name )
         if match:
             ( t, n, m ) = match.groups()
             text = match.group( 0 )
@@ -372,6 +372,8 @@ class WbcSchedule( object ):
     """
     valid = False
 
+    tracking = []
+
     # Data file names
     TEMPLATE = "resources/index-template.html"
 
@@ -406,6 +408,7 @@ class WbcSchedule( object ):
         """
 
         self.meta = metadata
+        self.tracking.extend( metadata.tracking )
 
         if not os.path.exists( self.meta.output ):
             os.makedirs( self.meta.output )
@@ -561,10 +564,10 @@ class WbcSchedule( object ):
         calendar = self.get_or_create_event_calendar( entry.code )
 
         # This test is for debugging purposes, and is only good for an entry that was sucessfully coded
-        if self.meta.debug and entry.code in [ 'TTN' ]:
+        if entry.code in self.tracking:
             pass
 
-        if entry.code == 'WAW':
+        if entry.code == 'WAW' and entry.format != 'Meeting':
             self.process_all_week_entry( calendar, entry )
         elif entry.freeformat and entry.grognard:
             self.process_freeformat_grognard_entry( calendar, entry )
@@ -697,9 +700,9 @@ class WbcSchedule( object ):
 
         start = entry.datetime
         remaining = timedelta( hours=length ) if length else entry.length
-        label = label if label else entry.name
+        label = label if label else entry.name + ' R1/1'
 
-        while ( remaining.days or remaining.seconds ):
+        while remaining.days or remaining.seconds:
             midnight = start.date() + timedelta( days=1 )
             duration = datetime( midnight.year, midnight.month, midnight.day ) - start
             if duration > remaining:

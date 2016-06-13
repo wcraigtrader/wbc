@@ -21,6 +21,7 @@
 # pylint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0702
 
 import logging
+import sys
 
 from WbcAllInOne import WbcAllInOne
 from WbcMetadata import WbcMetadata
@@ -29,13 +30,18 @@ from WbcScheduleComparison import ScheduleComparer
 from WbcSpreadsheet import WbcSchedule
 
 logging.basicConfig( level=logging.INFO )
-LOGGER = logging.getLogger( 'WBC' )
+logging.getLogger( 'requests' ).setLevel( logging.WARN )
+LOG = logging.getLogger( 'WBC' )
 
 #----- Real work happens here ------------------------------------------------
 
 if __name__ == '__main__':
 
     meta = WbcMetadata()
+
+    # Parse the WBC Preview
+    # wbc_preview = WbcPreview( meta )
+    # sys.exit(0)
 
     # Load a schedule from a spreadsheet, based upon commandline options.
     wbc_schedule = WbcSchedule( meta )
@@ -66,4 +72,4 @@ if __name__ == '__main__':
     comparer = ScheduleComparer( meta, wbc_schedule, wbc_allinone, wbc_preview )
     comparer.verify_event_calendars()
 
-    LOGGER.info( "Done." )
+    LOG.info( "Done." )

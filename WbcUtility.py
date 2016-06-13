@@ -59,6 +59,9 @@ def round_up_timedelta( duration ):
     seconds = 60 * int( ( seconds + 30 ) / 60 )
     return timedelta( seconds=seconds )
 
+def cal_time( timestamp ):
+    return as_local( round_up_datetime ( timestamp ) )
+
 # ----- Web methods -----------------------------------------------------------
 
 def parse_url( url):

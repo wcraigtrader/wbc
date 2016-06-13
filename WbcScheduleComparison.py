@@ -1,4 +1,4 @@
-#----- Copyright (c) 2010-2016 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2016 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -18,56 +18,58 @@ import codecs
 import logging
 import os
 
-from WbcUtility import as_local
+from WbcUtility import as_local, cal_time
+
+LOG = logging.getLogger( 'WbcScheduleComparison' )
 
 
-LOGGER = logging.getLogger( 'WbcScheduleComparison' )
-
-#----- Schedule Comparison ---------------------------------------------------
+# ----- Schedule Comparison ---------------------------------------------------
 
 class ScheduleComparer( object ):
     """This class knows enough about the different schedule sources to compare events"""
 
     TEMPLATE = 'resources/report-template.html'
 
-    def __init__( self, metadata, s, a, p=None ):
+    def __init__(self, metadata, s, a, p=None):
         self.meta = metadata
         self.schedule = s
         self.allinone = a
         self.preview = p
         self.parser = None
 
-    def verify_event_calendars( self ):
+    def verify_event_calendars(self):
         """Compare the collections of events from both the calendars and the schedule"""
 
-        LOGGER.info( 'Verifying event calendars against other sources' )
+        LOG.info( 'Verifying event calendars against other sources' )
 
         schedule_key_set = set( self.schedule.current_tourneys )
 
         if self.allinone.valid:
-            allinone_key_set = set( self.allinone.events.keys() )
+            LOG.info( 'All-in-One schedule included.' )
+            allinone_key_set = set( self.allinone.events.keys( ) )
             allinone_extras = allinone_key_set - schedule_key_set
             allinone_omited = schedule_key_set - allinone_key_set
         else:
-            allinone_extras = set()
-            allinone_omited = set()
+            allinone_extras = set( )
+            allinone_omited = set( )
 
         if self.preview.valid:
-            preview_key_set = set( self.preview.events.keys() )
+            LOG.info( 'Event previews included.' )
+            preview_key_set = set( self.preview.events.keys( ) )
             preview_extras = preview_key_set - schedule_key_set
             preview_omited = schedule_key_set - preview_key_set
         else:
-            preview_extras = set()
-            preview_omited = set()
+            preview_extras = set( )
+            preview_omited = set( )
 
         if len( allinone_extras ):
-            LOGGER.error( 'Extra events present in All-in-One: %s', allinone_extras )
+            LOG.error( 'Extra events present in All-in-One: %s', allinone_extras )
         if len( allinone_omited ):
-            LOGGER.error( 'Events omitted in All-in-One: %s', allinone_omited )
+            LOG.error( 'Events omitted in All-in-One: %s', allinone_omited )
         if len( preview_extras ):
-            LOGGER.error( 'Extra events present in Preview: %s', preview_extras )
+            LOG.error( 'Extra events present in Preview: %s', preview_extras )
         if len( preview_omited ):
-            LOGGER.error( 'Events omitted in Preview: %s', preview_omited )
+            LOG.error( 'Events omitted in Preview: %s', preview_omited )
 
         code_set = schedule_key_set
         if self.allinone.valid:
@@ -76,25 +78,25 @@ class ScheduleComparer( object ):
             code_set = code_set & preview_key_set
 
         codes = list( code_set )
-        codes.sort()
+        codes.sort( )
 
-        self.initialize_discrepancies_report()
+        self.initialize_discrepancies_report( )
         for code in codes:
             self.report_discrepancies( code )
-        self.write_discrepancies_report()
+        self.write_discrepancies_report( )
 
-    def initialize_discrepancies_report( self ):
+    def initialize_discrepancies_report(self):
         """Initial discrepancies report from template"""
 
         with open( self.TEMPLATE, "r" ) as f:
-            template = f.read()
+            template = f.read( )
 
         self.parser = BeautifulSoup( template, 'lxml' )
 
         # Locate insertion points
         title = self.parser.find( 'title' )
-        header = self.parser.find( 'div', { 'id' : 'header' } )
-        footer = self.parser.find( 'div', { 'id' : 'footer' } )
+        header = self.parser.find( 'div', {'id': 'header'} )
+        footer = self.parser.find( 'div', {'id': 'footer'} )
 
         # Page title
         if self.meta.fullreport:
@@ -104,24 +106,25 @@ class ScheduleComparer( object ):
 
         title.insert( 0, self.parser.new_string( text ) )
         header.h1.insert( 0, self.parser.new_string( text ) )
-        footer.p.insert( 0, self.parser.new_string( "Updated on %s" % self.meta.now.strftime( "%A, %d %B %Y %H:%M %Z" ) ) )
+        footer.p.insert( 0,
+                         self.parser.new_string( "Updated on %s" % self.meta.now.strftime( "%A, %d %B %Y %H:%M %Z" ) ) )
 
-    def report_discrepancies( self, code ):
+    def report_discrepancies(self, code):
         """Format the discrepancies for a given tournament"""
 
         # Find all of the matching events from each schedule
-        ai1_events = self.allinone.events[ code ] if self.allinone.valid else []
-        prv_events = self.preview.events[ code ] if self.preview.valid else []
-        prv_events = [ e for e in prv_events if e.type != 'Junior' ]
+        ai1_events = self.allinone.events[code] if self.allinone.valid else []
+        prv_events = self.preview.events[code] if self.preview.valid else []
+        prv_events = [e for e in prv_events if e.type != 'Junior']
         cal_events = self.schedule.calendars[code].subcomponents
 
         # Find all of the unique times for any events
-        ai1_timemap = dict( [(as_local( e.time ), e) for e in ai1_events] )
-        prv_timemap = dict( [(as_local( e.time ), e) for e in prv_events] )
-        cal_timemap = dict( [(as_local( e.decoded( 'dtstart' ) ), e) for e in cal_events] )
-        time_set = set( ai1_timemap.keys() ) | set( prv_timemap.keys() ) | set( cal_timemap.keys() )
+        ai1_timemap = dict( [(cal_time( e.time ), e) for e in ai1_events] )
+        prv_timemap = dict( [(cal_time( e.time ), e) for e in prv_events] )
+        cal_timemap = dict( [(cal_time( e.decoded( 'dtstart' ) ), e) for e in cal_events] )
+        time_set = set( ai1_timemap.keys( ) ) | set( prv_timemap.keys( ) ) | set( cal_timemap.keys( ) )
         time_list = list( time_set )
-        time_list.sort()
+        time_list.sort( )
 
         label = self.meta.names[code]
 
@@ -133,48 +136,54 @@ class ScheduleComparer( object ):
         # For each date/time combination, compare all of the events at that time
         for starting_time in time_list:
             # Start with empty cells
-            details = [( None, ), ( None, ), ( None, ), ]
+            details = [(None,), (None,), (None,), ]
 
             # Fill in the Preview event, if present
             if prv_timemap.has_key( starting_time ):
-                e = prv_timemap[ starting_time ]
+                e = prv_timemap[starting_time]
                 location = 'Terrace' if e.location and e.location.startswith( 'Terr' ) else e.location
-                details[0] = ( location, e.type )
+                details[0] = (location, e.type)
 
             # Fill in the All-in-One event, if present
             if ai1_timemap.has_key( starting_time ):
-                e = ai1_timemap[ starting_time ]
+                e = ai1_timemap[starting_time]
                 location = 'Terrace' if e.location == 'Pt' else e.location
-                details[1] = ( location, e.type )
+                details[1] = (location, e.type)
 
             # Fill in the spreadsheet event, if present
             if cal_timemap.has_key( starting_time ):
-                e = cal_timemap[ starting_time ]
+                e = cal_timemap[starting_time]
                 location = 'Terrace' if e['location'].startswith( 'Terr' ) else e['location']
                 summary = unicode( e['summary'] )
                 try:
                     ulab = codecs.decode( label, 'utf-8' )
                     summary = summary[len( ulab ) + 1:] if summary.startswith( ulab ) else summary
                 except Exception as x:
-                    LOGGER.error( u'Could not handle %s', summary )
-                    LOGGER.exception( x )
+                    LOG.error( u'Could not handle %s', summary )
+                    LOG.exception( x )
                 seconds = e['duration'].dt.seconds
                 hours = int( seconds / 3600 )
-                minutes = int ( ( seconds - 3600 * hours ) / 60 )
-                duration = "%d:%02d" % ( hours, minutes )
-                details[2] = ( location, summary, duration )
+                minutes = int( (seconds - 3600 * hours) / 60 )
+                duration = "%d:%02d" % (hours, minutes)
+                details[2] = (location, summary, duration)
 
             result = self.add_discrepancy_row( rows, starting_time, details )
             discrepancies = discrepancies or result
 
         # If we have notes, add them
-        if self.preview.valid and self.preview.notes.has_key( code ) :
+        notes = self.preview.notes[code] if self.preview.notes.has_key( code ) else []
+        if self.preview.valid and len( notes ):
             discrepancies = True
             tr = self.parser.new_tag( 'tr' )
             td = self.parser.new_tag( 'td' )
             td['colspan'] = 8
             td['class'] = 'note'
-            td.insert( 0, self.parser.new_string( self.preview.notes[ code ] ) )
+
+            for note in notes:
+                if len( td ):
+                    td.insert( len( td ), self.parser.new_tag( 'br' ) )
+                td.insert( len( td ), self.parser.new_string( note ) )
+
             tr.insert( len( tr ), td )
             rows.append( tr )
 
@@ -185,7 +194,7 @@ class ScheduleComparer( object ):
         if discrepancies or self.meta.fullreport:
             self.add_discrepancies_to_report( rows )
 
-    def create_discrepancy_header( self, rows, code ):
+    def create_discrepancy_header(self, rows, code):
         """Create the first row of the discrepancies table (code, name, headers)"""
 
         label = self.meta.names[code]
@@ -204,7 +213,7 @@ class ScheduleComparer( object ):
 
         if self.preview.valid:
             a = self.parser.new_tag( 'a' )
-            a['href'] = self.meta.url[ code ]
+            a['href'] = self.meta.url[code]
             a.insert( 0, self.parser.new_string( 'Event Preview' ) )
             th = self.parser.new_tag( 'th' )
             th['colspan'] = 2
@@ -224,25 +233,25 @@ class ScheduleComparer( object ):
 
         rows.append( tr )
 
-    def add_discrepancy_row( self, rows, starting_time, details ):
+    def add_discrepancy_row(self, rows, starting_time, details):
         """Format a discrepancy row for this time"""
 
-        if not self.preview.valid:
+        if not self.allinone.valid:
             del details[1]
 
-        if not self.allinone.valid:
+        if not self.preview.valid:
             del details[0]
 
         # Calculate which calendars are different than the others
         if len( details ) == 1:
-            differences = set()
+            differences = set( )
         elif len( details ) == 2:
             if details[0][0] == details[1][0]:
-                differences = set()
+                differences = set( )
             else:
                 differences = set( [0, 1] )
         elif details[0][0] == details[1][0] and details[1][0] == details[2][0]:
-            differences = set()
+            differences = set( )
         elif details[0][0] == details[1][0]:
             differences = set( [2] )
         elif details[0][0] == details[2][0]:
@@ -262,7 +271,7 @@ class ScheduleComparer( object ):
 
         # For each detailed event, create appropriately marked cells
         for i in range( len( details ) ):
-            if details[i][0] == None:
+            if details[i][0] is None:
                 td = self.parser.new_tag( 'td' )
                 td['colspan'] = 2 if i < len( details ) - 1 else 3
                 if i in differences:
@@ -273,7 +282,7 @@ class ScheduleComparer( object ):
                     td = self.parser.new_tag( 'td' )
                     if i in differences:
                         td['class'] = 'diff'
-                    value = '' if details[i][j] == None else details[i][j]
+                    value = '' if details[i][j] is None else details[i][j]
                     td.insert( 0, self.parser.new_string( value ) )
                     tr.insert( len( tr ), td )
 
@@ -281,10 +290,10 @@ class ScheduleComparer( object ):
 
         return len( differences ) > 0
 
-    def add_discrepancies_to_report( self, rows ):
+    def add_discrepancies_to_report(self, rows):
         """Add these rows to the discrepancies report"""
 
-        table = self.parser.find( 'div', {'id':'details'} ).table
+        table = self.parser.find( 'div', {'id': 'details'} ).table
 
         if len( table ):
             # Add a blank cell for padding
@@ -297,34 +306,33 @@ class ScheduleComparer( object ):
         for row in rows:
             table.insert( len( table ), row )
 
-    def write_discrepancies_report( self ):
+    def write_discrepancies_report(self):
         """Write the discrepancies report, in a nice pretty format"""
 
         path = os.path.join( self.meta.output, "report.html" )
         with codecs.open( path, 'w', 'utf-8' ) as f:
-            f.write( self.parser.prettify() )
+            f.write( self.parser.prettify( ) )
 
-    def ai1_date_loc( self, ev ):
+    def ai1_date_loc(self, ev):
         """Generate a summary of an all-in-one event for comparer purposes"""
 
         start_time = as_local( ev.time )
         location = ev.location
         location = 'Terrace' if location == 'Pt' else location
-        return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M' ), location )
+        return '%s : %s' % (start_time.strftime( '%a %m-%d %H:%M' ), location)
 
-    def prv_date_loc( self, ev ):
+    def prv_date_loc(self, ev):
         """Generate a summary of an preview event for comparer purposes"""
 
         start_time = as_local( ev.time )
         location = ev.location
         location = 'Terrace' if location.startswith( 'Terr' ) else location
-        return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M' ), location )
+        return '%s : %s' % (start_time.strftime( '%a %m-%d %H:%M' ), location)
 
-    def cal_date_loc( self, sc ):
+    def cal_date_loc(self, sc):
         """Generate a summary of a calendar event for comparer purposes"""
 
         start_time = as_local( sc.decoded( 'dtstart' ) )
         location = sc['location']
         location = 'Terrace' if location.startswith( 'Terrace' ) else location
-        return '%s : %s' % ( start_time.strftime( '%a %m-%d %H:%M' ), location )
-
+        return '%s : %s' % (start_time.strftime( '%a %m-%d %H:%M' ), location)

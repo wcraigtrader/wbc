@@ -34,6 +34,11 @@ class WbcMetadata( object ):
     now = datetime.now( TZ )
     this_year = now.year
 
+    tracking = [
+        # 'SSB',
+        # 'WAW',
+    ]
+
     # Data file names
     EVENTCODES = os.path.join( "meta", "wbc-event-codes.csv" )
     OTHERCODES = os.path.join( "meta", "wbc-other-codes.csv" )

@@ -116,17 +116,23 @@ class Token( object ):
 
         cls.initialize_7springs_rooms( )
 
+        cls.AT = Token( 'Symbol', '@' )
+        cls.AND = cls.LOOKUP['and'] = Token( 'Symbol', '&' )
+        cls.PLUS = Token( 'Symbol', '+' )
+        cls.DASH = Token( 'Symbol', '-' )
+        cls.SLASH = Token( 'Symbol', '/' )
+        cls.START = Token( 'Symbol', '|' )
+
         cls.PATTERN = '|'.join( sorted( cls.LOOKUP.keys( ), reverse=True ) )
 
-        cls.AT = cls.LOOKUP['@'] = Token( 'Symbol', '@' )
-        cls.AND = cls.LOOKUP['&'] = Token( 'Symbol', '&' )
-        cls.PLUS = cls.LOOKUP['+'] = Token( 'Symbol', '+' )
-        cls.DASH = cls.LOOKUP['-'] = Token( 'Symbol', '-' )
-        cls.SLASH = cls.LOOKUP['/'] = Token( 'Symbol', '/' )
+        cls.LOOKUP['&'] = cls.AND
+        cls.LOOKUP['@'] = cls.AT
+        cls.LOOKUP['+'] = cls.PLUS
+        cls.LOOKUP['-'] = cls.DASH
+        cls.LOOKUP['/'] = cls.SLASH
+        cls.LOOKUP['|'] = cls.START
 
         cls.PATTERN += '|[@&+-/]'
-
-        cls.START = cls.LOOKUP['|'] = Token( 'Symbol', '|' )
 
     @classmethod
     def add_event(cls, primary, *aliases):
@@ -495,7 +501,7 @@ class Parser( object ):
         Stop [ 'Day' ]
         """
         e1 = self.next( )
-        return [(e1.label,)]
+        return (e1.label,)
 
     def match_multiple_heats(self):
         """
@@ -523,9 +529,9 @@ class Parser( object ):
         n = self.next( )
         if self.has( 'Qualifier' ):
             q = self.next( )
-            return [(e1.label, n.value, q.label)]
+            return e1.label, n.value, q.label
 
-        return [(e1.label, n)]
+        return e1.label, n.value
 
     def match_round(self):
         """
@@ -537,13 +543,14 @@ class Parser( object ):
         self.next( )
         m = self.next( )
 
-        return [(e1.label, n.value, m.value)]
+        return e1.label, n.value, m.value
 
     def match_date_times(self):
         """Recognized date/time formats:
     
         <day> <time> @
         <day> @ <time>
+        <day> @ <time> - <time>
         <day> <time> & <day> <time> @
         <day> <time> <time> <time> & <time> @
         <day> <time> & <day> <time> & <time> & <day> <time> & <day> <time> @
@@ -559,6 +566,11 @@ class Parser( object ):
         while self.has( 'Day' ):
             day = self.next( )
             while self.is_not( Token.DASH, 'Room', 'Day' ):
+                if self.has( 'Number', Token.DASH, 'Number' ):
+                    time = self.next( )
+                    self.next( )
+                    self.next( )
+                    results.append( timedelta( days=day.value, hours=time.value ) )
                 if self.has( 'Number' ):
                     offset = 0
                     time = self.next( )
@@ -590,36 +602,10 @@ class Parser( object ):
 class WbcPreview( object ):
     """This class is used to parse schedule data from the annual preview pages"""
 
-    # Basically there are two message streams to parse:
-    #
-    # 1) When events are happening
-    # 2) Where events are happening
-    #
-    # When messages were originally framed as one day per table cell (<td>),
-    # but with events that now stretch for 8 or more days, now some cells
-    # may encompass as many as 5 days.  To complicate matters,
-    # instead of indicating a date, images are used to indicate a day.  With
-    # the convention stretching from 9 days from Saturday to the following Sunday,
-    # there are two Saturdays and two Sundays, each represented by the same icon.
+    tracking = [
+    ]
 
-    # TODO: Preview codes for messages, move to Meta
-    notes = {
-        'CNS': "Can't match 15 minute rounds",
-        'ELC': "Can't match 20 minute rounds",
-        'KOT': "Can't match 15 minute rounds, Can't handle 'to conclusion'",
-        'LID': "Can't match 30 minute rounds",
-        'LST': "Can't match 30 minute rounds, Can't handle 'until conclusion'",
-        'PGF': "Can't handle 'to conclusion'",
-        'RTT': "Can't match 30 minute rounds, Can't handle 'until completion'",
-        'SLS': "Can't match 20 minute rounds",
-
-        # 'ADV': "Preview shows 1 hour for SF and F, not 2 hours per spreadsheet and pocket schedule",
-        # 'BAR': "Pocket schedule shows R1@8/8:9, R2@8/8:14, R3@8/8:19, SF@8/9:9, F@8/9:14",
-        # 'KFE': "Pocket schedule shows R1@8/6:9, R2@8/6:16, SF@8/7:9, F@8/7:16",
-        # 'MED': "Preview shows heats taking place after SF/F",
-        # 'RFG': "Should only have 1 demo, can't parse H1 room",
-        # 'STA': "Conestoga is misspelled as Coonestoga",
-    }
+    notes = {}
 
     class Event( object ):
         """Simple data object to collect information about an event occuring at a specific time."""
@@ -645,16 +631,18 @@ class WbcPreview( object ):
 
     class Tourney( object ):
 
-        tracking = []
-
         def __init__(self, meta, code, name, page):
 
             self.meta = meta
             self.code = code
             self.name = name
 
+            self.notes = []
             self.events = []
             self.event_tokens = []
+            self.heats = set( )
+            self.rounds = set( )
+            self.max = 0
 
             td = page.table.table.table.findAll( 'tr' )[2].td
             paras = list( td.findAll( 'p' ) )
@@ -662,6 +650,7 @@ class WbcPreview( object ):
             if len( paras ):
                 self.tokenize_events( paras )
                 self.parse_events( )
+                self.check_consistency( )
 
             else:
                 LOG.error( '%s: Did not find schedule data', code )
@@ -680,9 +669,9 @@ class WbcPreview( object ):
                         if stripped:
                             self.event_tokens.append( Token.tokenize_text( stripped ) )
 
-            # if self.code in self.tracking:
-            for section in Token.encode_list( self.event_tokens ):
-                LOG.debug( "%s: %s", self.code, section )
+            if self.code in WbcPreview.tracking:
+                for section in Token.encode_list( self.event_tokens ):
+                    LOG.debug( "%s: %s", self.code, section )
 
         def parse_events(self):
             """Recognized event formats:
@@ -702,318 +691,153 @@ class WbcPreview( object ):
             SF / F <day> @ <time> -? <room>
             """
 
-            # return
-
             for row in self.event_tokens:
                 p = Parser( row )
                 if p.has( 'Event', Token.SLASH, 'Event', Token.SLASH, 'Event', 'Day' ):
                     elist = p.match_3_events( )
+                    times = p.match_date_times( )
+                    room = p.match_room( )
+                    self.add_events( [e[0] for e in elist], times, room )
+                    self.max = max( self.max, 4 )
+                    self.rounds.add( self.max - 2 )
+                    self.rounds.add( self.max - 1 )
+                    self.rounds.add( self.max )
+
                 elif p.has( 'Event', Token.SLASH, 'Event', 'Day' ):
                     elist = p.match_2_events( )
+                    times = p.match_date_times( )
+                    room = p.match_room( )
+                    self.add_events( [e[0] for e in elist], times, room )
+                    if elist[0][0] == 'QF':
+                        self.max = max( self.max, 4 )
+                        self.rounds.add( self.max - 2 )
+                        self.rounds.add( self.max - 1 )
+                    elif elist[0][0] == 'SF':
+                        self.max = max( self.max, 3 )
+                        self.rounds.add( self.max - 1 )
+                        self.rounds.add( self.max )
+
                 elif p.has( 'Event', 'Number', Token.DASH, 'Number', 'Day' ):
                     elist = p.match_multiple_heats( )
+                    times = p.match_date_times( )
+                    room = p.match_room( )
+                    self.add_events( ["%s%d" % event for event in elist], times, room )
+                    self.max = max( self.max, 2 )
+                    self.rounds.add( 1 )
+
                 elif p.has( 'Event', 'Number', Token.SLASH, 'Number', 'Day' ):
-                    elist = p.match_round( )
+                    name, n, m = p.match_round( )
+                    times = p.match_date_times( )
+                    room = p.match_room( )
+
+                    if name == 'R':
+                        ename = '%s%d/%d' % (name, n, m)
+                        self.max = max( self.max, m )
+                        if n in self.rounds:
+                            self.notes.append( 'Preview has duplicate entry for %s' % ename )
+                        else:
+                            self.rounds.add( n )
+                    elif name == 'H':
+                        ename = '%s%d/%d' % (name, n, m)
+                        self.max = max( self.max, 2 )
+                        self.rounds.add( 1 )
+                        if n in self.heats:
+                            self.notes.append( 'Preview has duplicate entry for %s' % ename )
+                        else:
+                            self.heats.add( n )
+                    else:
+                        ename = '%s %d/%d' % (name, n, m)
+
+                    self.add_event( ename, times[0], room )
+
                 elif p.has( 'Event', 'Number', 'Qualifier', 'Day' ):
-                    elist = p.match_heat( )
+                    name, n, qualifier = p.match_heat( )
+                    times = p.match_date_times( )
+                    room = p.match_room( )
+                    ename = '%s %d %s' % (name, n, qualifier)
+                    self.add_event( ename, times[0], room )
+                    if name == 'H':
+                        self.max = max( self.max, 2 )
+                        self.rounds.add( 1 )
+                        if n in self.heats:
+                            self.notes.append( 'Preview has duplicate entry for %s' % ename )
+                        else:
+                            self.heats.add( n )
+
                 elif p.has( 'Event', 'Number', 'Day' ):
-                    elist = p.match_heat( )
+                    name, n = p.match_heat( )
+                    times = p.match_date_times( )
+                    room = p.match_room( )
+                    ename = '%s%d' % (name, n)
+                    if len( times ) == 0:
+                        self.notes.append( 'Preview missing start time for %s in %s' % (ename, room) )
+                    elif len( times ) > 1:
+                        self.notes.append( 'Preview has extra start times for %s in %s' % (ename, room) )
+                    else:
+                        self.add_event( ename, times[0], room )
+
+                    if name == 'H':
+                        self.max = max( self.max, 2 )
+                        self.rounds.add( 1 )
+                        if n in self.heats:
+                            self.notes.append( 'Preview has duplicate entry for %s' % ename )
+                        else:
+                            self.heats.add( n )
+
                 elif p.has( 'Event', 'Day' ):
-                    elist = p.match_event( )
+                    event = p.match_event( )
+                    times = p.match_date_times( )
+                    room = p.match_room( )
+
+                    count = len( times )
+                    name = event[0]
+                    if count > 1:
+                        names = ["%s %d/%d" % (name, i, count) for i in range( 1, count + 1 )]
+                        self.add_events( names, times, room )
+                    else:
+                        self.add_event( name, times[0], room )
+
+                    if name == 'QF':
+                        self.max = max( self.max, 4 )
+                        self.rounds.add( self.max - 2 )
+                    elif name == 'SF':
+                        self.max = max( self.max, 3 )
+                        self.rounds.add( self.max - 1 )
+                    elif name == 'F':
+                        self.max = max( self.max, 2 )
+                        self.rounds.add( self.max )
+
                 else:
                     LOG.error( '%s: Could not match %s', self.code, row )
                     continue
 
-                times = p.match_date_times( )
-                room = p.match_room( )
-
-                # self.add_events( elist, times, room )
-
             self.events.sort( )
 
-        def add_events(self, elist, times, room):
-            if len( elist ) == len( times ):
-                for e, t in zip( elist, times ):
-                    self.events.append(
-                        WbcPreview.Event( self.code, self.name, e[0], localize( self.meta.first_day + t ), room ) )
-
-    class Pre2016Tourney( object ):
-        """Class to organize events for a Preview tournament."""
-
-        default_room = None
-        shift_room = None
-        shift_time = None
-        draft_room = None
-
-        event_tokens = None
-        room_tokens = None
-        code_tokens = None
-        event_map = None
-        events = None
-
-        tracking = []
-
-        def __init__(self, meta, code, name, page):
-            """The schedule table within the page is a table that has a variable number of rows:
-
-            [0] Contains the date the page was last updated -- ignored (may not be present).
-            [1] Contains the token code and other image codes
-            [2:-2] Contains the schedule data, mostly as images, in two columns
-            [-1] Contains the location information.
-            """
-
-            self.meta = meta
-            self.code = code
-            self.name = name
-            self.first_day = self.meta.first_day
-
-            if self.code == 'ACQ':
-                pass
-
-            # Find schedule / rows
-            rows = page.findAll( 'table' )[2].findAll( 'tr' )
-
-            if rows[0].text.find( 'Updated' ) != -1:
-                rows = rows[1:]  # Remove optional and ignored update time
-
-            self.tokenize_codes( rows )
-            self.tokenize_rooms( rows )
-            self.tokenize_times( rows )
-
-            if self.code in self.tracking:
-                LOG.info( "%3s: rooms %s", self.code, Token.dump_list( self.room_tokens ) )
-                LOG.info( "     times %s", Token.dump_list( self.event_tokens ) )
-                LOG.info( "     codes %s", Token.dump_list( self.code_tokens ) )
-
-            self.parse_rooms( )
-            self.parse_events( )
-
-        def tokenize_codes(self, rows):
-            self.code_tokens = Token.tokenize( rows[0] )
-
-        def tokenize_times(self, rows):
-            """Parse 3rd row through next-to-last for event data"""
-
-            self.event_tokens = []
-            start = 1
-            for row in rows[start:-1]:
-                for td in row.findAll( 'td' ):
-                    self.event_tokens.append( Token.START )
-                    self.event_tokens += Token.tokenize( td )
-
-        def tokenize_rooms(self, rows):
-            """"parse last row for room data"""
-
-            self.room_tokens = Token.tokenize( rows[-1] )
-
-        def parse_rooms(self):
-
-            # <default room>? [ SHIFT <shift room> [ AT <day> <time> ] ] { <event>+ <room> }*
-            #
-            # If this is PDT, then the shift room is special
-
-            LOG.debug( 'Parsing rooms ...' )
-
-            self.event_map = {}
-
-            p = Parser( self.room_tokens )
-
-            if p.match_room_shift( ):
-                self.default_room = p.default_room
-                if self.code == 'PDT':
-                    self.draft_room = p.shift_room
-                else:
-                    self.shift_room = p.shift_room
-                    self.shift_time = self.first_day + timedelta( days=p.shift_day.value ) + p.shift_time.value
-
-            elif p.match_room( ):
-                self.default_room = p.last_room
-
-            while p.match_room_events( ):
-                for e in p.event_list:
-                    self.event_map[e] = p.last_room
-
-            if p.count:
-                LOG.warn( '%3s: Unmatched room tokens: %s', self.code, p.tokens )
-                pass
-
-        def parse_events(self):
-            if self.code in ['AFK', 'PZB', 'WAW']:
-                self.parse_events_2014( )
+        def add_event(self, name, time, room):
+            event_time = localize( self.meta.first_day + time )
+            if room is None:
+                self.notes.append( 'Preview missing room for %s at %s' % (name, event_time) )
             else:
-                self.parse_events_2015( )
+                event = WbcPreview.Event( self.code, self.name, name, event_time, room.label )
+                self.events.append( event )
 
-        def parse_events_2015(self):
+        def add_events(self, names, times, room):
+            for i in range( len( times ), len( names ) ):
+                self.notes.append( 'Preview missing start time for %s in %s' % (names[i], room.label) )
 
-            # START <day> ( <event> <time> { PLUS | MINUS <end time> }? ( AT <room> )? )*
-            # START <day>* ( <day> <event> <time> PLUS? )? <day>* <event> <time> PLUS?
-            # [ AT <room> ] }+
-            # If there are multiple times, then each represents a separate event on that day
+            for name, time in zip( names, times ):
+                self.add_event( name, time, room )
 
-            LOG.debug( 'Parsing events ...' )
-
-            awards_are_events = self.code in ['UPF', 'VIP', 'WWR']
-            two_weekends = self.code in ['AFK', 'AOR', 'AUC', 'BWD', 'GBG', 'PZB', 'TRC', 'SQL', 'WAT', 'WSM']
-
-            self.events = []
-
-            weekend_offset = 0
-            weekend_start = 5 if two_weekends else 1
-
-            p = Parser( self.event_tokens )
-
-            if self.code in ['ATS']:
-                pass
-
-            while p.have_start( ):
-                p.match( Token.START )
-
-                while p.count and not p.have_start( ):
-                    if p.match_day( ):
-                        day = p.last_day
-                        weekend_offset = 7 if day.value > weekend_start else weekend_offset
-                        day_of_week = day.value + weekend_offset if day.value < 2 else day.value
-                        midnight = self.first_day + timedelta( days=day_of_week )
-
-                    elif p.match_multiple_event_times( ):
-                        for etime in p.time_list:
-                            # handle events immediately
-                            dtime = midnight + etime
-                            room = self.find_room( p.last_actual, dtime, p.last_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, localize( dtime ), room )
-                            self.add_event( e )
-
-                    elif p.match_single_event_time( awards_are_events=awards_are_events ):
-                        if self.code == 'PDT' and p.last_name.endswith( 'FC' ):
-                            dtime = midnight + p.last_start
-                            room = self.find_room( p.last_actual, dtime, self.draft_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', localize( dtime ),
-                                                  room )
-                            self.add_event( e )
-
-                            dtime = dtime + timedelta( hours=1 )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, localize( dtime ),
-                                                  self.default_room )
-                            self.add_event( e )
-
-                        else:
-                            dtime = midnight + p.last_start
-                            room = self.find_room( p.last_actual, dtime, p.last_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, localize( dtime ), room )
-                            self.add_event( e )
-
-                    else:
-                        p.recover( )
-
-            self.events.sort( )
-
-        def parse_events_2014(self):
-
-            # START <day> ( <event> <time> { PLUS | MINUS <end time> }? ( AT <room> )? )*
-            # START <day> ( <day>* <event> <time> PLUS? )? <day>* <event> <time> PLUS?
-            # [ AT <room> ] }+
-            # If there are multiple days, then all of the events happen on all of the days (except demos)
-            # If there are multiple times, then each represents a separate event on that day
-
-            LOG.debug( 'Parsing events ...' )
-
-            awards_are_events = self.code in ['UPF', 'VIP', 'WWR']
-            two_weekends = self.code in ['AFK', 'AOR', 'AUC', 'BWD', 'GBG', 'PZB', 'TRC', 'SQL', 'WAT', 'WSM']
-
-            self.events = []
-
-            weekend_offset = 0
-            weekend_start = 5 if two_weekends else 1
-
-            p = Parser( self.event_tokens )
-
-            if self.code in ['WAW']:
-                pass
-
-            while p.have_start( ):
-                p.match( Token.START )
-
-                days = []
-                partial = []
-
-                while p.count and not p.have_start( ):
-                    if p.match_day( ):
-                        # add day to day queue
-                        day = p.last_day
-                        days.append( day )
-
-                        weekend_offset = 7 if day.value > weekend_start else weekend_offset
-
-                        day_of_week = day.value + weekend_offset if day.value < 2 else day.value
-                        midnight = self.first_day + timedelta( days=day_of_week )
-
-                    elif p.match_multiple_event_times( ):
-                        for etime in p.time_list:
-                            # handle events immediately
-                            dtime = midnight + etime
-                            room = self.find_room( p.last_actual, dtime, p.last_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, localize( dtime ), room )
-                            self.add_event( e )
-
-                    elif p.match_single_event_time( awards_are_events=awards_are_events ):
-                        if p.last_name == 'Demo':
-                            # handle demos immediately
-                            dtime = midnight + p.last_start
-                            room = self.find_room( p.last_actual, dtime, p.last_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, localize( dtime ), room )
-                            self.add_event( e )
-
-                        elif self.code == 'PDT' and p.last_name.endswith( 'FC' ):
-                            dtime = midnight + p.last_start
-                            room = self.find_room( p.last_actual, dtime, self.draft_room )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name + u' Draft', localize( dtime ),
-                                                  room )
-                            self.add_event( e )
-
-                            dtime = dtime + timedelta( hours=1 )
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, localize( dtime ),
-                                                  self.default_room )
-                            self.add_event( e )
-
-                        else:
-                            # add event to event queue
-                            e = WbcPreview.Event( self.code, self.name, p.last_name, p.last_start, p.last_room )
-                            e.actual = p.last_actual
-                            partial.append( e )
-                    else:
-                        p.recover( )
-
-                for day in days:
-                    day_of_week = day.value + weekend_offset if day.value < 2 else day.value
-                    midnight = self.first_day + timedelta( days=day_of_week )
-
-                    for pevent in partial:
-                        # add event to actual event list
-                        dtime = midnight + pevent.time
-                        room = self.find_room( pevent.actual, dtime, pevent.location )
-                        e = WbcPreview.Event( self.code, self.name, pevent.type, localize( dtime ), room )
-                        self.add_event( e )
-
-            self.events.sort( )
-
-        def add_event(self, event):
-            if event.code in self.tracking:
-                LOG.info( event )
-            self.events.append( event )
-
-        def find_room(self, etype, etime, eroom):
-            room = self.shift_room if self.shift_room and etime >= self.shift_time else self.default_room
-            room = self.event_map[etype] if self.event_map.has_key( etype ) else room
-            room = eroom if eroom else room
-            room = '-none-' if room is None else room
-
-            if not room:
-                pass
-
-            return room
+        def check_consistency(self):
+            if self.max:
+                missing = list( set( range( 1, self.max + 1 ) ) - self.rounds )
+                missing.sort( )
+                for r in missing:
+                    self.notes.append( 'Preview missing start time for R%d/%d' % (r, self.max) )
 
     def __init__(self, metadata):
         self.meta = metadata
+        self.tracking.extend( metadata.tracking )
 
         self.valid = False
         self.events = {}
@@ -1024,11 +848,19 @@ class WbcPreview( object ):
 
         for code, url in self.meta.url.items( ):
             # LOG.debug( "Loading event preview for %s: %s", code, url )
+            if len( self.tracking ) and code not in self.tracking:
+                continue
+
+            self.notes[code] = self.notes[code] if self.notes.has_key( code ) else []
+
             page = parse_url( url )
             if page:
                 t = WbcPreview.Tourney( self.meta, code, self.meta.names[code], page )
                 self.events[code] = t.events
+                self.notes[code].extend( t.notes )
             else:
-                LOG.error( 'Unable to load event preview for %s from %s', code, url )
+                message = 'Unable to load event preview for %s from %s' % (code, url)
+                self.notes[code].append( message )
+                LOG.error( message )
 
         self.valid = True
