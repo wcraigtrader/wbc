@@ -67,8 +67,6 @@ class WbcAllInOne( object ):
 
     valid = False
 
-    TERRACE = 'Pt'
-
     colormap = {
         'green': 'Demo',
         'magenta': 'Mulligan',
@@ -80,9 +78,22 @@ class WbcAllInOne( object ):
 
     # Events that are miscoded (bad code : actual code)
     # codemap = { 'MMA': 'MRA', }
-    codemap = { }
-
+    codemap = { 'T_G': 'T-G' }
+    roommap = {
+        'Festival': 'Festival Hall',
+        'Ballroom B': 'Ballroom',
+        'First Tracks Pool': 'First Tracks Poolside',
+        'First TracksPoolside': 'First Tracks Poolside',
+    }
     events = {}
+
+    notes = {
+        '7WD': 'All-in-One does not handle 45 minute rounds',
+        'CNS': 'All-in-One does not handle 30 minute rounds',
+        'ELC': 'All-in-One does not handle 20 minute rounds',
+        'KOT': 'All-in-One does not handle 45 minute rounds',
+        'LID': 'All-in-One does not handle 30 minute rounds',
+    }
 
     class Event( object ):
         """Simple data object to collect information about an event occuring at a specific time."""
@@ -137,8 +148,8 @@ class WbcAllInOne( object ):
             return
 
         tables = self.page.findAll( 'table' )
-        rows = tables[3].findAll( 'tr' )
-        for row in rows:
+        rows = tables[1].findAll( 'tr' )
+        for row in rows[1:]:
             self.load_row( row )
 
         self.valid = True
@@ -172,11 +183,11 @@ class WbcAllInOne( object ):
                         day = current_date.day
                         month = current_date.month
                         if hour >= 24:
-                            hour = hour - 24
-                            day = day + 1
+                            hour -= 24
+                            day += 1
                         if day >= 32:  # This works because WBC always starts in either the end of July or beginning of August
-                            day = day - 31
-                            month = month + 1
+                            day -= 31
+                            month += 1
                         e.time = localize( current_date.replace( month=month, day=day, hour=hour ) )
                         e.type = self.colormap.get( val, None )
                         current[hour] = e
@@ -187,12 +198,15 @@ class WbcAllInOne( object ):
 
                         if len( text ) == 1:
                             # If there's only one entry, it applies to all events
+                            entry = text[0]
+                            entry = self.roommap[ entry ] if self.roommap.has_key( entry ) else entry
                             for e in current.values():
-                                e.location = text[0]
+                                e.location = entry
                         else:
                             # For each entry ...
                             for chunk in text:
                                 times, dummy, entry = chunk.partition( ':' )
+                                entry = self.roommap[ entry ] if self.roommap.has_key( entry ) else entry
                                 if times == 'others':
                                     # Apply this location to all entries without locations
                                     for e in current.values():

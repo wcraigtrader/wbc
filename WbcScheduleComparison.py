@@ -30,6 +30,9 @@ class ScheduleComparer( object ):
 
     TEMPLATE = 'resources/report-template.html'
 
+    DEMO_AI1 = 'Pt'
+    DEMO_HALL = 'Exhibit Annex'
+
     def __init__(self, metadata, s, a, p=None):
         self.meta = metadata
         self.schedule = s
@@ -141,19 +144,19 @@ class ScheduleComparer( object ):
             # Fill in the Preview event, if present
             if prv_timemap.has_key( starting_time ):
                 e = prv_timemap[starting_time]
-                location = 'Terrace' if e.location and e.location.startswith( 'Terr' ) else e.location
+                location = self.DEMO_HALL if e.location and e.location.startswith( self.DEMO_HALL ) else e.location
                 details[0] = (location, e.type)
 
             # Fill in the All-in-One event, if present
             if ai1_timemap.has_key( starting_time ):
                 e = ai1_timemap[starting_time]
-                location = 'Terrace' if e.location == 'Pt' else e.location
+                location = self.DEMO_HALL if e.location == self.DEMO_AI1 else e.location
                 details[1] = (location, e.type)
 
             # Fill in the spreadsheet event, if present
             if cal_timemap.has_key( starting_time ):
                 e = cal_timemap[starting_time]
-                location = 'Terrace' if e['location'].startswith( 'Terr' ) else e['location']
+                location = self.DEMO_HALL if e['location'].startswith( self.DEMO_HALL ) else e['location']
                 summary = unicode( e['summary'] )
                 try:
                     ulab = codecs.decode( label, 'utf-8' )
@@ -171,7 +174,13 @@ class ScheduleComparer( object ):
             discrepancies = discrepancies or result
 
         # If we have notes, add them
-        notes = self.preview.notes[code] if self.preview.notes.has_key( code ) else []
+        notes = []
+        if self.allinone.valid and self.allinone.notes.has_key( code ):
+            notes.append( self.allinone.notes[ code ] )
+        if self.preview.valid and self.preview.notes.has_key( code ):
+            notes.extend( self.preview.notes[ code ] )
+
+
         if self.preview.valid and len( notes ):
             discrepancies = True
             tr = self.parser.new_tag( 'tr' )
@@ -318,7 +327,7 @@ class ScheduleComparer( object ):
 
         start_time = as_local( ev.time )
         location = ev.location
-        location = 'Terrace' if location == 'Pt' else location
+        location = self.DEMO_HALL if location == 'Pt' else location
         return '%s : %s' % (start_time.strftime( '%a %m-%d %H:%M' ), location)
 
     def prv_date_loc(self, ev):
@@ -326,7 +335,7 @@ class ScheduleComparer( object ):
 
         start_time = as_local( ev.time )
         location = ev.location
-        location = 'Terrace' if location.startswith( 'Terr' ) else location
+        location = self.DEMO_HALL if location.startswith( self.DEMO_HALL ) else location
         return '%s : %s' % (start_time.strftime( '%a %m-%d %H:%M' ), location)
 
     def cal_date_loc(self, sc):
@@ -334,5 +343,5 @@ class ScheduleComparer( object ):
 
         start_time = as_local( sc.decoded( 'dtstart' ) )
         location = sc['location']
-        location = 'Terrace' if location.startswith( 'Terrace' ) else location
+        location = self.DEMO_HALL if location.startswith( self.DEMO_HALL ) else location
         return '%s : %s' % (start_time.strftime( '%a %m-%d %H:%M' ), location)
