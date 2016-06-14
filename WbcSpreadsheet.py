@@ -571,6 +571,8 @@ class WbcSchedule( object ):
             self.process_all_week_entry( calendar, entry )
         elif entry.freeformat and entry.grognard:
             self.process_freeformat_grognard_entry( calendar, entry )
+        elif self.meta.grognards.has_key( entry.code ) and entry.format == 'SwEl' :
+            self.process_freeformat_grognard_entry( calendar, entry )
         elif entry.freeformat and entry.format == 'SwEl' and entry.rounds:
             self.process_freeformat_swel_entry( calendar, entry )
         elif entry.rounds:
@@ -690,7 +692,7 @@ class WbcSchedule( object ):
         """
         # FIXME: This is wrong for BWD, which starts at 10am on the PC days, not 9am
         duration = self.meta.grognards[entry.code] if self.meta.grognards.has_key( entry.code ) else 49
-        label = "%s PC R%s/%s" % ( entry.name, 1, entry.rounds )
+        label = "%s R%s/%s" % ( entry.name, 1, entry.rounds )
         self.process_all_week_entry( calendar, entry, duration, label )
 
     def process_all_week_entry( self, calendar, entry, length=None, label=None ):

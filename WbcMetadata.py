@@ -37,6 +37,7 @@ class WbcMetadata( object ):
     tracking = [
         # 'SSB',
         # 'WAW',
+        # 'AFK', 'BWD', 'GBG', 'PZB', 'SQL', 'TRC', 'WAT', 'WSM'
     ]
 
     # Data file names
