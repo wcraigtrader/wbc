@@ -19,6 +19,7 @@ from functools import total_ordering
 from icalendar import Calendar, Event
 import codecs
 import csv
+import json
 import logging
 import os
 import re
@@ -922,14 +923,16 @@ class WbcSchedule( object ):
         data.sort()
 
         spreadsheet_file = os.path.join( self.meta.output, "schedule.csv" )
-        with codecs.open( spreadsheet_file, "w", 'utf-8' ) as f:
-            writer = csv.DictWriter( f, WbcRow.FIELDS, extrasaction='ignore' )
+        details_file = os.path.join( self.meta.output, "details.csv" )
+        json_file = os.path.join( self.meta.output, "details.json" )
+
+        with codecs.open( spreadsheet_file, "w", 'utf-8' ) as csv_file:
+            writer = csv.DictWriter( csv_file, WbcRow.FIELDS, extrasaction='ignore' )
             writer.writeheader()
             writer.writerows( [ e.row for e in data ] )
 
-        details_file = os.path.join( self.meta.output, "details.csv" )
-        with codecs.open( details_file, "w", 'utf-8' ) as f:
-            writer = csv.DictWriter( f, WbcRow.FIELDS, extrasaction='ignore' )
+        with codecs.open( details_file, "w", 'utf-8' ) as csv_file:
+            writer = csv.DictWriter( csv_file, WbcRow.FIELDS, extrasaction='ignore' )
             writer.writeheader()
             for event in self.everything.subcomponents:
                 row = eval( event['COMMENT'] )
@@ -944,6 +947,32 @@ class WbcSchedule( object ):
                 duration = event.decoded( 'DURATION' )
                 row['Duration'] = duration.total_seconds() / 3600.0
                 writer.writerow( row )
+
+
+        with codecs.open( json_file, 'w', 'utf-8' ) as json_file:
+            json_file.write( '[\n' )
+            subsequent = False
+            for event in self.everything.subcomponents:
+                json_file.write( ',\n  ' if subsequent else '  ')
+                subsequent = True
+
+                row = eval( event['COMMENT'] )
+                row['Continuous'] = 'Y' if row['Continuous'] else ''
+                row['Event'] = event['SUMMARY']
+                row['GM'] = event['CONTACT']
+                row['Location'] = event['LOCATION']
+                sdatetime = as_local( event.decoded( 'DTSTART' ) )
+                row['Date'] = sdatetime.date().strftime( '%m/%d/%Y' )
+                stime = sdatetime.time()
+                xtime = stime.hour * 1.0 + stime.minute / 60.0
+                xtime = int(xtime) if int(xtime) == xtime else xtime
+                row['Time'] = xtime
+                duration = event.decoded( 'DURATION' )
+                row['Duration'] = duration.total_seconds() / 3600.0
+
+                json_file.write( json.dumps( row ) )
+
+            json_file.write( '\n]\n' )
 
     def write_index_page( self ):
         """
