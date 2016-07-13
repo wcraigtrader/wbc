@@ -1,0 +1,812 @@
+{
+  "5TR": {
+    "name": "Five Tribes"
+  },
+  "775": {
+    "name": "1775: Rebellion",
+    "playlate": "once",
+    "altnames": [
+      "1775"
+    ]
+  },
+  "7WD": {
+    "name": "7 Wonders Duel"
+  },
+  "7WS": {
+    "name": "7 Wonders"
+  },
+  "8XX": {
+    "name": "18XX",
+    "altnames": [
+      "1830"
+    ]
+  },
+  "989": {
+    "name": "1989: Dawn of Freedom",
+    "playlate": "all",
+    "altnames": [
+      "1989"
+    ]
+  },
+  "A&A": {
+    "name": "Axis & Allies",
+    "altnames": [
+      "A&A"
+    ]
+  },
+  "ABN": {
+    "name": "Air Baron"
+  },
+  "ACQ": {
+    "name": "Acquire"
+  },
+  "ACS": {
+    "name": "Atlantic Storm"
+  },
+  "ACV": {
+    "name": "Advanced Civilization",
+    "altnames": [
+      "Advanced Civilizaton"
+    ]
+  },
+  "ADV": {
+    "name": "Adel Verpflichtet"
+  },
+  "AFK": {
+    "name": "Afrika Korps",
+    "duration": 36,
+    "grognard": 104
+  },
+  "AGE": {
+    "name": "Through the Ages",
+    "playlate": "once"
+  },
+  "AGR": {
+    "name": "Agricola"
+  },
+  "AHD": {
+    "name": "A House Divided",
+    "playlate": "all",
+    "altnames": [
+      "House Divided"
+    ]
+  },
+  "ALH": {
+    "name": "Alhambra",
+    "altnames": [
+      "Alhambre"
+    ]
+  },
+  "AMR": {
+    "name": "Amun Re",
+    "altnames": [
+      "Amun-Re"
+    ]
+  },
+  "ANZ": {
+    "name": "Anzio",
+    "duration": 36,
+    "grognard": 104
+  },
+  "AOA": {
+    "name": "Ace of Aces",
+    "altnames": [
+      "Ace of Aces Circus"
+    ]
+  },
+  "AOR": {
+    "name": "Age of Renaissance"
+  },
+  "ATS": {
+    "name": "Attack Sub"
+  },
+  "AUC": {
+    "name": "Auction"
+  },
+  "AUT": {
+    "name": "Automobile"
+  },
+  "A_S": {
+    "name": "Arctic Scavengers"
+  },
+  "B&O": {
+    "name": "Baltimore & Ohio"
+  },
+  "B17": {
+    "name": "B-17",
+    "altnames": [
+      "B17"
+    ]
+  },
+  "BAR": {
+    "name": "Battles of the American Revolution",
+    "playlate": "once",
+    "altnames": [
+      "Battles Am Revolution",
+      "Battles Am. Revolution",
+      "Battles American Rev",
+      "Battles of Am Rev",
+      "Battles of Am Revolution",
+      "Battles of Am. Revolution"
+    ]
+  },
+  "BAT": {
+    "name": "Battle Line",
+    "altnames": [
+      "Battleline"
+    ]
+  },
+  "BBS": {
+    "name": "Brawlin' Battleships",
+    "altnames": [
+      "Brawling Battleship Steel",
+      "Brawling Battleships Steel"
+    ]
+  },
+  "BCY": {
+    "name": "Battle Cry"
+  },
+  "BKN": {
+    "name": "Breakout: Normandy",
+    "altnames": [
+      "Breakout Normandy"
+    ]
+  },
+  "BRI": {
+    "name": "Britannia"
+  },
+  "BRS": {
+    "name": "Brass"
+  },
+  "BWD": {
+    "name": "Bitter Woods",
+    "grognard": 104
+  },
+  "C&K": {
+    "name": "Settlers of Catan: Cities & Knights",
+    "altnames": [
+      "Catan: Cities & Knights",
+      "Catan; Cities & Knights"
+    ]
+  },
+  "CAR": {
+    "name": "Carcassonne"
+  },
+  "CBC": {
+    "name": "Combat Commander"
+  },
+  "CCA": {
+    "name": "Commands & Colors: Ancients",
+    "altnames": [
+      "C & C Ancients",
+      "C&C Ancients",
+      "Commands & Colors Ancients"
+    ]
+  },
+  "CCN": {
+    "name": "Commands & Colors: Napoleonics",
+    "altnames": [
+      "C & C Napoleonics",
+      "C&C Napoleonics",
+      "Commands & Colors Napoleonics"
+    ]
+  },
+  "CHL": {
+    "name": "Churchill"
+  },
+  "CIS": {
+    "name": "Counter Insurgency Series",
+    "altnames": [
+      "COIN series A Distant Plain",
+      "COIN series Andean Abyss",
+      "COIN series Cuba Libre"
+    ]
+  },
+  "CMK": {
+    "name": "Castles of Mad King Ludwig",
+    "altnames": [
+      "Castles Mad King Ludwig"
+    ]
+  },
+  "CMS": {
+    "name": "Circus Maximus"
+  },
+  "CNC": {
+    "name": "Concordia"
+  },
+  "CNS": {
+    "name": "Can't Stop",
+    "playlate": "all"
+  },
+  "COB": {
+    "name": "Castles of Burgundy"
+  },
+  "COH": {
+    "name": "Conflict of Heroes"
+  },
+  "CQP": {
+    "name": "Conquest of Paradise"
+  },
+  "CQT": {
+    "name": "Cinque Terre"
+  },
+  "DIP": {
+    "name": "Diplomacy"
+  },
+  "DOM": {
+    "name": "Dominion"
+  },
+  "DSP": {
+    "name": "Dominant Species"
+  },
+  "DUN": {
+    "name": "Dune"
+  },
+  "E&T": {
+    "name": "Euphrat & Tigris",
+    "altnames": [
+      "Tigris & Euphrates"
+    ]
+  },
+  "EGZ": {
+    "name": "Egizia"
+  },
+  "EIS": {
+    "name": "Enemy In Sight",
+    "altnames": [
+      "Enemy in Sight"
+    ]
+  },
+  "ELC": {
+    "name": "Elchfest",
+    "playlate": "all"
+  },
+  "ELF": {
+    "name": "Elfenroads"
+  },
+  "ELG": {
+    "name": "El Grande"
+  },
+  "EOS": {
+    "name": "Empire of the Sun",
+    "playlate": "once"
+  },
+  "EPB": {
+    "name": "Empire Builder"
+  },
+  "EVL": {
+    "name": "Evolution"
+  },
+  "FBS": {
+    "name": "Football Strategy"
+  },
+  "FDE": {
+    "name": "Formula De"
+  },
+  "FI5": {
+    "name": "Facts In Five",
+    "altnames": [
+      "Facts in Five"
+    ]
+  },
+  "FIL": {
+    "name": "Fire in the Lake"
+  },
+  "FMR": {
+    "name": "Formula Motor Racing"
+  },
+  "FTP": {
+    "name": "For The People",
+    "playlate": "once",
+    "altnames": [
+      "For the People"
+    ]
+  },
+  "GBG": {
+    "name": "Gettysburg '88",
+    "grognard": 104,
+    "altnames": [
+      "Gettysburg"
+    ]
+  },
+  "GBM": {
+    "name": "Global Mogul"
+  },
+  "GCA": {
+    "name": "Great Campaigns of the ACW",
+    "altnames": [
+      "Great Campaigns",
+      "Great Campaigns ACW"
+    ]
+  },
+  "GOA": {
+    "name": "Goa"
+  },
+  "GSR": {
+    "name": "Gangsters",
+    "playlate": "all"
+  },
+  "GXT": {
+    "name": "Galaxy Trucker"
+  },
+  "GXY": {
+    "name": "Galaxy"
+  },
+  "HIS": {
+    "name": "Here I Stand"
+  },
+  "HNT": {
+    "name": "The Hunters",
+    "altnames": [
+      "Hunters",
+      "Hunters, The"
+    ]
+  },
+  "HOS": {
+    "name": "Hammer of the Scots"
+  },
+  "HRC": {
+    "name": "Hannibal: Rome vs Carthage",
+    "altnames": [
+      "Hannibal"
+    ]
+  },
+  "HWD": {
+    "name": "History of the World"
+  },
+  "ING": {
+    "name": "Ingenious",
+    "altnames": [
+      "Ingenius"
+    ]
+  },
+  "IOV": {
+    "name": "Innovation"
+  },
+  "IVH": {
+    "name": "Ivanhoe",
+    "playlate": "once"
+  },
+  "JUC": {
+    "name": "Julius Caesar",
+    "playlate": "once",
+    "altnames": [
+      "Julius Caeser"
+    ]
+  },
+  "KAR": {
+    "name": "Kanban: Auto Revolution"
+  },
+  "KFE": {
+    "name": "Koenig's Fortress Europe",
+    "playlate": "once"
+  },
+  "KOT": {
+    "name": "King of Tokyo",
+    "playlate": "all"
+  },
+  "KPR": {
+    "name": "Kaiser's Pirates"
+  },
+  "KRM": {
+    "name": "Kremlin"
+  },
+  "KYF": {
+    "name": "Keyflower"
+  },
+  "LAS": {
+    "name": "Las Vegas",
+    "playlate": "all"
+  },
+  "LBY": {
+    "name": "Labyrinth",
+    "playlate": "once"
+  },
+  "LCW": {
+    "name": "Lincoln's War"
+  },
+  "LHV": {
+    "name": "Le Havre"
+  },
+  "LID": {
+    "name": "Liar's Dice",
+    "playlate": "all"
+  },
+  "LLM": {
+    "name": "Leaping Lemmings"
+  },
+  "LST": {
+    "name": "Lost Cities",
+    "playlate": "all"
+  },
+  "LWD": {
+    "name": "Lords of Waterdeep"
+  },
+  "LWL": {
+    "name": "Last Will"
+  },
+  "M44": {
+    "name": "Memoir '44"
+  },
+  "MAN": {
+    "name": "Manoeuvre"
+  },
+  "MAR": {
+    "name": "Maria"
+  },
+  "MCK": {
+    "name": "MetaCheckers"
+  },
+  "MED": {
+    "name": "Medici",
+    "playlate": "once"
+  },
+  "MFD": {
+    "name": "Manifest Destiny"
+  },
+  "MGW": {
+    "name": "Mage Wars"
+  },
+  "MMA": {
+    "name": "Monsters Menace America",
+    "altnames": [
+      "Monsters Menace USA",
+      "Monsters Ravage ...",
+      "Monsters Ravage a"
+    ]
+  },
+  "MMS": {
+    "name": "March Madness"
+  },
+  "MMW": {
+    "name": "Mr. Madison's War",
+    "playlate": "once",
+    "altnames": [
+      "Mr Madison's War"
+    ]
+  },
+  "MOV": {
+    "name": "Merchant of Venus"
+  },
+  "NAP": {
+    "name": "Napoleon"
+  },
+  "NVG": {
+    "name": "Navegador"
+  },
+  "NVW": {
+    "name": "Naval War"
+  },
+  "NW5": {
+    "name": "Napoleonic Wars 5 player",
+    "altnames": [
+      "Napoleonic Wars"
+    ]
+  },
+  "PDT": {
+    "name": "Paydirt",
+    "altnames": [
+      "Paydirt AFC",
+      "Paydirt NFC"
+    ]
+  },
+  "PGD": {
+    "name": "Power Grid"
+  },
+  "PGF": {
+    "name": "Pro Golf",
+    "playlate": "all"
+  },
+  "POF": {
+    "name": "Princes of Florence"
+  },
+  "POG": {
+    "name": "Paths of Glory",
+    "playlate": "once"
+  },
+  "PRC": {
+    "name": "Pirate's Cove"
+  },
+  "PRO": {
+    "name": "Puerto Rico"
+  },
+  "PZB": {
+    "name": "Panzerblitz",
+    "grognard": 104
+  },
+  "QGB": {
+    "name": "Star Wars: Queen's Gambit",
+    "altnames": [
+      "Queen's Gambit",
+      "Star Wars Queen's Gambit",
+      "Star Wars: Queens Gambit",
+      "Star Wars; Queen's Gambit",
+      "Star Wars; Queens Gambit"
+    ]
+  },
+  "RA!": {
+    "name": "Ra",
+    "altnames": [
+      "Ra!"
+    ]
+  },
+  "RBN": {
+    "name": "Rail Baron"
+  },
+  "RBR": {
+    "name": "Rebel Raiders",
+    "playlate": "once"
+  },
+  "RBS": {
+    "name": "Russian Beseiged",
+    "altnames": [
+      "Russia Besieged"
+    ]
+  },
+  "RDG": {
+    "name": "Ra: The Dice Game",
+    "altnames": [
+      "Ra: the Dice Game",
+      "Ra:The Dice Game",
+      "Ra; The Dice Game",
+      "Ra; the Dice Game"
+    ]
+  },
+  "RFG": {
+    "name": "Race For the Galaxy"
+  },
+  "RGD": {
+    "name": "Roll For the Galaxy",
+    "altnames": [
+      "Roll for the Galaxy"
+    ]
+  },
+  "ROR": {
+    "name": "Republic of Rome"
+  },
+  "RRR": {
+    "name": "Russian Railroads"
+  },
+  "RRY": {
+    "name": "Robo Rally"
+  },
+  "RTT": {
+    "name": "Rattlebones",
+    "playlate": "all",
+    "altnames": [
+      "RattleBones"
+    ]
+  },
+  "SCC": {
+    "name": "Stock Car Championship Racing",
+    "altnames": [
+      "Stock Car Racing",
+      "StockCar Ch Racing",
+      "Stockcar Ch. Racing",
+      "Stockcar Championship Racing",
+      "Stockcar Racing"
+    ]
+  },
+  "SCT": {
+    "name": "Speed Circuit"
+  },
+  "SET": {
+    "name": "Settlers of Catan",
+    "altnames": [
+      "Settlers"
+    ]
+  },
+  "SFR": {
+    "name": "Santa Fe Rails"
+  },
+  "SGM": {
+    "name": "Sergeants: Miniatures Game",
+    "playlate": "all",
+    "altnames": [
+      "Sergeants Miniature Game",
+      "Sergeants Miniatures Game",
+      "Sergeants Minis Game"
+    ]
+  },
+  "SJN": {
+    "name": "San Juan"
+  },
+  "SKG": {
+    "name": "Sekigahara",
+    "playlate": "once"
+  },
+  "SLS": {
+    "name": "Slapshot",
+    "playlate": "all"
+  },
+  "SMW": {
+    "name": "Small World",
+    "playlate": "once"
+  },
+  "SOD": {
+    "name": "Storm Over Dien Bien Phu"
+  },
+  "SPD": {
+    "name": "Splendor"
+  },
+  "SPG": {
+    "name": "St. Petersburg",
+    "altnames": [
+      "Saint Petersburg",
+      "St Petersburg"
+    ]
+  },
+  "SPY": {
+    "name": "Spyrium",
+    "playlate": "all"
+  },
+  "SQL": {
+    "name": "Squad Leader",
+    "grognard": 104
+  },
+  "SSB": {
+    "name": "Superstar Baseball",
+    "duration": 15,
+    "playlate": "once"
+  },
+  "STA": {
+    "name": "Stone Age"
+  },
+  "SWM": {
+    "name": "Star Wars Miniatures",
+    "altnames": [
+      "Star Wars Minis"
+    ]
+  },
+  "T&T": {
+    "name": "Thurn & Taxis",
+    "altnames": [
+      "Thurn & Taxus"
+    ]
+  },
+  "T-G": {
+    "name": "Tin Goose"
+  },
+  "TAM": {
+    "name": "Trans America",
+    "altnames": [
+      "TransAmerica"
+    ]
+  },
+  "TIM": {
+    "name": "Tigers in the Mist",
+    "altnames": [
+      "Tigers In Mist"
+    ]
+  },
+  "TMP": {
+    "name": "Temporum"
+  },
+  "TRC": {
+    "name": "The Russian Campaign",
+    "duration": 36,
+    "grognard": 104,
+    "altnames": [
+      "Russian Campaign"
+    ]
+  },
+  "TT2": {
+    "name": "Titan 2",
+    "altnames": [
+      "Titan 2 Player",
+      "Titan 2-Player",
+      "Titan Two"
+    ]
+  },
+  "TTA": {
+    "name": "Titan: The Arena",
+    "altnames": [
+      "Titan the Arena",
+      "Titan: the Arena",
+      "Titan:The Arena",
+      "Titan; The Arena"
+    ]
+  },
+  "TTN": {
+    "name": "Titan",
+    "playlate": "once",
+    "altnames": [
+      "Titan & Titan Two"
+    ]
+  },
+  "TTR": {
+    "name": "Ticket to Ride",
+    "altnames": [
+      "Ticket To Ride"
+    ]
+  },
+  "TWI": {
+    "name": "Twilight Imperium"
+  },
+  "TWS": {
+    "name": "Twilight Struggle"
+  },
+  "TZK": {
+    "name": "Tzolk'in"
+  },
+  "UNP": {
+    "name": "Union Pacific"
+  },
+  "UPF": {
+    "name": "Up Front",
+    "playlate": "once"
+  },
+  "VGQ": {
+    "name": "Virgin Queen"
+  },
+  "VIE": {
+    "name": "Victory in Europe",
+    "playlate": "once"
+  },
+  "VIP": {
+    "name": "Victory in the Pacific",
+    "altnames": [
+      "Victory In Pacific",
+      "Victory in Pacific",
+      "Victory in the Pacific"
+    ]
+  },
+  "VSD": {
+    "name": "Vegas Showdown",
+    "playlate": "once"
+  },
+  "WAR": {
+    "name": "War Stories"
+  },
+  "WAS": {
+    "name": "War At Sea",
+    "playlate": "once"
+  },
+  "WAT": {
+    "name": "Waterloo",
+    "duration": 36,
+    "grognard": 104
+  },
+  "WAW": {
+    "name": "World At War"
+  },
+  "WLL": {
+    "name": "Wellington"
+  },
+  "WNW": {
+    "name": "Wilderness War",
+    "playlate": "once"
+  },
+  "WOG": {
+    "name": "Warriors of God",
+    "playlate": "once"
+  },
+  "WOR": {
+    "name": "War of the Ring"
+  },
+  "WPS": {
+    "name": "Win, Place & Show",
+    "altnames": [
+      "Win Place & Show",
+      "Win,  Place & Show"
+    ]
+  },
+  "WSM": {
+    "name": "Wooden Ships & Iron Men",
+    "duration": 36,
+    "grognard": 104,
+    "altnames": [
+      "Wooden Ships",
+      "Wooden Ships & IM",
+      "Wooden Ships & Iron",
+      "Wooden Ships ...",
+      "Wooden Ships and Iron Men"
+    ]
+  },
+  "WWR": {
+    "name": "Washington's War"
+  },
+  "YSP": {
+    "name": "Yspahan"
+  }
+}

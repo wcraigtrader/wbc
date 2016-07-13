@@ -1,4 +1,4 @@
-#----- Copyright (c) 2010-2016 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2016 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -13,14 +13,16 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections import OrderedDict
 from datetime import datetime
 from optparse import OptionParser
 import csv
+import json
 import logging
 import os
 import re
 
-from bs4 import Tag, NavigableString
+from bs4 import NavigableString
 from WbcUtility import parse_url, TZ, normalize
 
 LOGGER = logging.getLogger( 'WbcMetaData' )
@@ -28,16 +30,110 @@ LOGGER = logging.getLogger( 'WbcMetaData' )
 
 # ----- WBC Meta Data ---------------------------------------------------------
 
+class WbcJsonEncoder( json.JSONEncoder ):
+    
+    def default(self, o):
+        if type(o) == WbcMetaEvent:
+            return o.as_json()
+
+        return json.JSONEncoder.default(self, o)
+
+class WbcMetaEvent( object ):
+
+    def __init__(self, c, n):
+        self.code = c
+        self.name = n.strip( )
+        self.grognard = None
+        self.duration = None
+        self.playlate = None
+        self.altnames = []
+
+    def as_json(self):
+        j = OrderedDict()
+        j['name'] = self.name
+        if self.duration: j['duration'] = self.duration
+        if self.grognard: j['grognard'] = self.grognard
+        if self.playlate: j['playlate'] = self.playlate
+        altnames = set( self.altnames )
+        altnames = altnames - set( self.name )
+        altnames = list( altnames )
+        altnames.sort()
+        if len(altnames): j['altnames'] = altnames
+        return j
+
+    @classmethod
+    def load_csv(cls, pathname):
+        entries = OrderedDict()
+
+        with open( pathname, 'r' ) as f:
+            codefile = csv.DictReader( f, restkey='altnames' )
+            for row in codefile:
+                code = row['Code'].strip()
+                entry = WbcMetaEvent( code, row['Name'] )
+                entry.duration = int( row['Duration'] ) if row['Duration'] else None
+                entry.grognard = int( row['Grognard'] ) if row['Grognard'] else None
+                entry.playlate = row['PlayLate'].strip( ).lower( ) if row['PlayLate'] else None
+
+                if row['altnames']:
+                    entry.altnames = [x.strip() for x in row['altnames'] if x]
+
+                entries[code] = entry
+
+        return entries
+
+    @classmethod
+    def save_json(cls, pathname, entries):
+        with open( pathname, 'w' ) as f:
+            json.dump( entries, f, indent=2, cls=WbcJsonEncoder )
+
+    @classmethod
+    def load_json(cls, pathname):
+        entries = OrderedDict()
+
+        with open( pathname, 'r' ) as f:
+            data = json.load( f )
+            for code in sorted( data.keys() ):
+                row = data[code]
+                entry = WbcMetaEvent( code, row['name'] )
+                entry.duration = row['duration'] if row.has_key('duration') else None
+                entry.grognard = row['grognard'] if row.has_key('grognard') else None
+                entry.playlate = row['playlate'] if row.has_key('playlate') else None
+                entry.altnames = row['altnames'] if row.has_key('altnames') else []
+                entries[code] = entry
+
+        return entries
+
+class WbcMetaOther( object ):
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def load_csv(cls, pathname):
+        entries = OrderedDict()
+
+
+
+        return entries
+
 class WbcMetadata( object ):
     """Load metadata about events that is not available from other sources"""
 
     now = datetime.now( TZ )
     this_year = now.year
 
+    # List of events to debug
     tracking = [
         # 'SSB',
         # 'WAW',
         # 'AFK', 'BWD', 'GBG', 'PZB', 'SQL', 'TRC', 'WAT', 'WSM'
+    ]
+
+    # List of events for my personal calendar
+    personal = [
+        '7WD', 'C&K', 'CMK', 'EPB', 'IOV', 'KOT',
+        'PGD', 'PRO', 'RFG', 'RGD', 'RRR', 'RRY',
+        'SJN', 'SMW', 'SPD', 'TAM', 'TTR', 'VSD',
     ]
 
     # Data file names
@@ -56,6 +152,9 @@ class WbcMetadata( object ):
 
     codes = {}  # Name -> Code map for events
     names = {}  # Code -> Name map for events
+
+    eventmeta = {}  # Meta data for tournament events
+    othermeta = {}  # Meta data for non-tournament events
 
     durations = {}  # Special durations for events that have them
     grognards = {}  # Special durations for grognard events that have them
@@ -121,28 +220,15 @@ class WbcMetadata( object ):
         """
 
         LOGGER.debug( 'Loading tourney event codes' )
+        self.eventmeta = WbcMetaEvent.load_json( os.path.join( 'meta', 'wbc-event-codes.json' ) )
+        # WbcMetaEvent.save_json( os.path.join( 'meta', 'new-event-codes.json'), self.eventmeta )
 
-        codefile = csv.DictReader( open( self.EVENTCODES ) )
-        for row in codefile:
-            c = row['Code'].strip( )
-            n = row['Name'].strip( )
-            self.codes[n] = c
-            self.names[c] = n
-            self.tourneys.append( c )
-
-            if row['Duration']:
-                self.durations[c] = int( row['Duration'] )
-
-            if row['Grognard']:
-                self.grognards[c] = int( row['Grognard'] )
-
-            if row['PlayLate']:
-                self.playlate[c] = row['PlayLate'].strip( ).lower( )
-
-            for altname in ['Alt1', 'Alt2', 'Alt3', 'Alt4', 'Alt5', 'Alt6']:
-                if row[altname]:
-                    a = row[altname].strip( )
-                    self.codes[a] = c
+        for code, entry in self.eventmeta.items():
+            self.codes[entry.name] = code
+            self.names[code] = entry.name
+            self.tourneys.append( code )
+            for altname in entry.altnames:
+                self.codes[altname] = code
 
     def load_other_codes(self):
         """
@@ -178,18 +264,15 @@ class WbcMetadata( object ):
         # Find the preview table
         table = index.find( 'table' ).find( 'table' ).find( 'table' ).find( 'table' )
         rows = list( table.findAll( 'tr' ) )
-        for line in range(0, len(rows), 3): # 3 rows per actual line
-            top = list( rows[line].findAll('td'))
-            mid = list( rows[line+1].findAll('td'))
-            for column in range(0,8): # Always 8 cells
+        for line in range( 0, len( rows ), 3 ):  # 3 rows per actual line
+            top = list( rows[line].findAll( 'td' ) )
+            mid = list( rows[line + 1].findAll( 'td' ) )
+            for column in range( 0, 8 ):  # Always 8 cells
                 link = name = code = None
-
-                if line == 3 and column == 7:
-                    pass
 
                 try:
                     if type( top[column].contents[0] ) == NavigableString:
-                        continue # No link, no useful data
+                        continue  # No link, no useful data
                     link = top[column].a['href']
 
                     if type( mid[column].contents[0] ) == NavigableString:
@@ -198,18 +281,18 @@ class WbcMetadata( object ):
                             continue
                         m = re.match( "(.*) \((...)\)", name )
                         if m:
-                            name = normalize( unicode( m.group(1) ) )
-                            code = normalize( unicode( m.group(2) ) )
+                            name = normalize( unicode( m.group( 1 ) ) )
+                            code = normalize( unicode( m.group( 2 ) ) )
                         else:
                             code = normalize( unicode( mid[column].contents[2] ) ).strip( )
                     else:
                         name = normalize( unicode( mid[column].p.contents[0] ) ).strip( )
-                        code = normalize( unicode( mid[column].p.contents[2] ) ).strip()
+                        code = normalize( unicode( mid[column].p.contents[2] ) ).strip( )
 
-                    code = code.replace('(','').replace(')','')
+                    code = code.replace( '(', '' ).replace( ')', '' )
 
                     # Map page codes to event codes
-                    code = self.MISCODES[code] if self.MISCODES.has_key( code ) else code.upper()
+                    code = self.MISCODES[code] if self.MISCODES.has_key( code ) else code.upper( )
 
                     self.url[code] = self.SITE_URL + link
 

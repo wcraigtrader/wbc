@@ -24,6 +24,7 @@ import logging
 import os
 import re
 import shutil
+import urllib
 import unicodedata
 import xlrd
 
@@ -237,6 +238,7 @@ class WbcRow( object ):
                 if ( ( o['format'] and o['format'] == self.format ) or
                     ( o['name'] and o['name'] == self.name ) ):
                     self.code = o['code']
+                    LOGGER.debug( "Other (%s) %s | %s", o['code'], o['name'], o['format'] )
                     return
 
     def cleanlocation( self ):
@@ -399,6 +401,7 @@ class WbcSchedule( object ):
     current_tourneys = []
     everything = None
     tournaments = None
+    personal = None
     meta = None
 
     ICONS = [ 'ical.png', 'gcal16.png' ]
@@ -521,6 +524,11 @@ class WbcSchedule( object ):
         self.tournaments.add( 'PRODID', '-//' + self.prodid + ' Tournaments//ct7//' )
         self.tournaments.add( 'SUMMARY', 'WBC %s Tournaments Schedule' % self.meta.year )
 
+        self.personal = Calendar()
+        self.personal.add( 'VERSION', '2.0' )
+        self.personal.add( 'PRODID', '-//' + self.prodid + ' Personal//ct7//' )
+        self.personal.add( 'SUMMARY', 'WBC %s Personal Schedule' % self.meta.year )
+
         # For all of the event calendars
         for code, calendar in self.calendars.items():
 
@@ -530,6 +538,10 @@ class WbcSchedule( object ):
             # Add all the tourney events to the tourney calendar
             if code in self.current_tourneys:
                 self.tournaments.subcomponents += calendar.subcomponents
+
+            # Add it to my calendar
+            if code in self.meta.personal:
+                self.personal.subcomponents += calendar.subcomponents
 
             # For each calendar event
             for event in calendar.subcomponents:
@@ -563,6 +575,8 @@ class WbcSchedule( object ):
         """
 
         calendar = self.get_or_create_event_calendar( entry.code )
+        eventmeta = self.meta.eventmeta.get( entry.code, None )
+        grognard = eventmeta and eventmeta.grognard
 
         # This test is for debugging purposes, and is only good for an entry that was sucessfully coded
         if entry.code in self.tracking:
@@ -572,7 +586,7 @@ class WbcSchedule( object ):
             self.process_all_week_entry( calendar, entry )
         elif entry.freeformat and entry.grognard:
             self.process_freeformat_grognard_entry( calendar, entry )
-        elif self.meta.grognards.has_key( entry.code ) and entry.format == 'SwEl' :
+        elif grognard and entry.format == 'SwEl':
             self.process_freeformat_grognard_entry( calendar, entry )
         elif entry.freeformat and entry.format == 'SwEl' and entry.rounds:
             self.process_freeformat_swel_entry( calendar, entry )
@@ -649,7 +663,8 @@ class WbcSchedule( object ):
         late_part = 0 if next_end <= midnight else ( next_end - midnight ).total_seconds() / entry.length.total_seconds()
 
         # Lookup the override code for this event
-        playlate = self.meta.playlate.get( entry.code, None )
+        eventmeta = self.meta.eventmeta.get( entry.code, None )
+        playlate = eventmeta.playlate if eventmeta else None
 
         if playlate and late_part:
             LOGGER.debug( "Play late: %s: %4s, Start: %s, End: %s, Partial: %5.2f, %s", entry.code, playlate, next_start, next_end, late_part, late_part <= 0.5 )
@@ -676,7 +691,8 @@ class WbcSchedule( object ):
         all-week-event, except that the event duration and name are wrong.
         """
 
-        duration = self.meta.durations[entry.code] if self.meta.durations.has_key( entry.code ) else 51
+        duration = self.meta.eventmeta[entry.code].duration
+        duration = duration if duration else 51
         label = "%s R%s/%s" % ( entry.name, 1, entry.rounds )
         self.process_all_week_entry( calendar, entry, duration, label )
 
@@ -692,7 +708,8 @@ class WbcSchedule( object ):
         In this case, the duration is 10 + 15 + 15 + 9 = 49 hours.
         """
         # FIXME: This is wrong for BWD, which starts at 10am on the PC days, not 9am
-        duration = self.meta.grognards[entry.code] if self.meta.grognards.has_key( entry.code ) else 49
+        duration = self.meta.eventmeta[entry.code].grognard
+        duration = duration if duration else 49
         label = "%s R%s/%s" % ( entry.name, 1, entry.rounds )
         self.process_all_week_entry( calendar, entry, duration, label )
 
@@ -827,7 +844,7 @@ class WbcSchedule( object ):
         if entry.continuous:
             description += ' Continuous'
         if url:
-            description += '\nPreview: ' + url
+            description += '\nPreview: ' + urllib.quote( url, ':/' )
 
         e = Event()
         e.add( 'SUMMARY', name )
@@ -901,6 +918,7 @@ class WbcSchedule( object ):
         # Write the master and tourney calendars
         self.write_calendar_file( self.everything, "all-in-one" )
         self.write_calendar_file( self.tournaments, "tournaments" )
+        self.write_calendar_file( self.personal, "personal" )
 
         # Write the location calendars
         for location, calendar in self.locations.items():
@@ -947,7 +965,6 @@ class WbcSchedule( object ):
                 duration = event.decoded( 'DURATION' )
                 row['Duration'] = duration.total_seconds() / 3600.0
                 writer.writerow( row )
-
 
         with codecs.open( json_file, 'w', 'utf-8' ) as json_file:
             json_file.write( '[\n' )
@@ -1013,9 +1030,11 @@ class WbcSchedule( object ):
         self.render_calendar_list( parser, 'daily', 'Daily Calendars', self.dailies )
 
         # Special event calendars
-        specials = {}
-        specials['all-in-one'] = self.everything
-        specials['tournaments'] = self.tournaments
+        specials = {
+            'all-in-one': self.everything,
+            'tournaments': self.tournaments,
+            'personal': self.personal,
+        }
         self.render_calendar_list( parser, 'special', 'Special Calendars', specials )
 
         with codecs.open( os.path.join( self.meta.output, 'index.html' ), 'w', 'utf-8' ) as f:
