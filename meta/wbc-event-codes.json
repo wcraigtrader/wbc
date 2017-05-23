@@ -97,6 +97,9 @@
   "AOR": {
     "name": "Age of Renaissance"
   },
+  "ASK": {
+    "name": "ASL Starter Kit"
+  },
   "ATS": {
     "name": "Attack Sub"
   },
@@ -230,6 +233,9 @@
   "CQT": {
     "name": "Cinque Terre"
   },
+  "C_C": {
+    "name": "Coal Country"
+  },
   "DIP": {
     "name": "Diplomacy"
   },
@@ -301,6 +307,12 @@
     "altnames": [
       "For the People"
     ]
+  },
+  "F_E": {
+    "name": "Festung Europa"
+  },
+  "F_S": {
+    "name": "Falling Sky"
   },
   "GBG": {
     "name": "Gettysburg '88",
@@ -425,6 +437,9 @@
   "LWL": {
     "name": "Last Will"
   },
+  "L_L": {
+    "name": "Love Letter"
+  },
   "M44": {
     "name": "Memoir '44"
   },
@@ -483,12 +498,21 @@
       "Napoleonic Wars"
     ]
   },
+  "ORL": {
+    "name": "Orleans"
+  },
+  "O_E": {
+    "name": "Orient Express"
+  },
   "PDT": {
     "name": "Paydirt",
     "altnames": [
       "Paydirt AFC",
       "Paydirt NFC"
     ]
+  },
+  "PGC": {
+    "name": "Power Grid: The Card Game"
   },
   "PGD": {
     "name": "Power Grid"
@@ -590,6 +614,9 @@
   "SCT": {
     "name": "Speed Circuit"
   },
+  "SCY": {
+    "name": "Scythe"
+  },
   "SET": {
     "name": "Settlers of Catan",
     "altnames": [
@@ -658,6 +685,9 @@
       "Star Wars Minis"
     ]
   },
+  "SWR": {
+    "name": "Star Wars Rebellion"
+  },
   "T&T": {
     "name": "Thurn & Taxis",
     "altnames": [
@@ -673,11 +703,17 @@
       "TransAmerica"
     ]
   },
+  "TFM": {
+    "name": "Terraforming Mars"
+  },
   "TIM": {
     "name": "Tigers in the Mist",
     "altnames": [
       "Tigers In Mist"
     ]
+  },
+  "TLN": {
+    "name": "Talon"
   },
   "TMP": {
     "name": "Temporum"
@@ -728,6 +764,9 @@
   },
   "TZK": {
     "name": "Tzolk'in"
+  },
+  "T_M": {
+    "name": "Terra Mystica"
   },
   "UNP": {
     "name": "Union Pacific"
@@ -800,7 +839,8 @@
       "Wooden Ships & IM",
       "Wooden Ships & Iron",
       "Wooden Ships ...",
-      "Wooden Ships and Iron Men"
+      "Wooden Ships and Iron Men",
+      "Wooden Ships, Iron Men -"
     ]
   },
   "WWR": {
