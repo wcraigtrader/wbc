@@ -21,28 +21,28 @@ import json
 import logging
 import os
 import re
+import sys
 
 from bs4 import NavigableString
 from WbcUtility import parse_url, TZ, normalize
 
-LOGGER = logging.getLogger( 'WbcMetaData' )
+LOG = logging.getLogger('WbcMetaData')
 
 
 # ----- WBC Meta Data ---------------------------------------------------------
 
-class WbcJsonEncoder( json.JSONEncoder ):
-    
+class WbcJsonEncoder(json.JSONEncoder):
     def default(self, o):
         if type(o) == WbcMetaEvent:
             return o.as_json()
 
         return json.JSONEncoder.default(self, o)
 
-class WbcMetaEvent( object ):
 
+class WbcMetaEvent(object):
     def __init__(self, c, n):
         self.code = c
-        self.name = n.strip( )
+        self.name = n.strip()
         self.grognard = None
         self.duration = None
         self.playlate = None
@@ -54,9 +54,9 @@ class WbcMetaEvent( object ):
         if self.duration: j['duration'] = self.duration
         if self.grognard: j['grognard'] = self.grognard
         if self.playlate: j['playlate'] = self.playlate
-        altnames = set( self.altnames )
-        altnames = altnames - set( self.name )
-        altnames = list( altnames )
+        altnames = set(self.altnames)
+        altnames = altnames - set(self.name)
+        altnames = list(altnames)
         altnames.sort()
         if len(altnames): j['altnames'] = altnames
         return j
@@ -65,14 +65,14 @@ class WbcMetaEvent( object ):
     def load_csv(cls, pathname):
         entries = OrderedDict()
 
-        with open( pathname, 'r' ) as f:
-            codefile = csv.DictReader( f, restkey='altnames' )
+        with open(pathname, 'r') as f:
+            codefile = csv.DictReader(f, restkey='altnames')
             for row in codefile:
                 code = row['Code'].strip()
-                entry = WbcMetaEvent( code, row['Name'] )
-                entry.duration = int( row['Duration'] ) if row['Duration'] else None
-                entry.grognard = int( row['Grognard'] ) if row['Grognard'] else None
-                entry.playlate = row['PlayLate'].strip( ).lower( ) if row['PlayLate'] else None
+                entry = WbcMetaEvent(code, row['Name'])
+                entry.duration = int(row['Duration']) if row['Duration'] else None
+                entry.grognard = int(row['Grognard']) if row['Grognard'] else None
+                entry.playlate = row['PlayLate'].strip().lower() if row['PlayLate'] else None
 
                 if row['altnames']:
                     entry.altnames = [x.strip() for x in row['altnames'] if x]
@@ -83,18 +83,18 @@ class WbcMetaEvent( object ):
 
     @classmethod
     def save_json(cls, pathname, entries):
-        with open( pathname, 'w' ) as f:
-            json.dump( entries, f, indent=2, cls=WbcJsonEncoder )
+        with open(pathname, 'w') as f:
+            json.dump(entries, f, indent=2, cls=WbcJsonEncoder)
 
     @classmethod
     def load_json(cls, pathname):
         entries = OrderedDict()
 
-        with open( pathname, 'r' ) as f:
-            data = json.load( f )
-            for code in sorted( data.keys() ):
+        with open(pathname, 'r') as f:
+            data = json.load(f)
+            for code in sorted(data.keys()):
                 row = data[code]
-                entry = WbcMetaEvent( code, row['name'] )
+                entry = WbcMetaEvent(code, row['name'])
                 entry.duration = row['duration'] if row.has_key('duration') else None
                 entry.grognard = row['grognard'] if row.has_key('grognard') else None
                 entry.playlate = row['playlate'] if row.has_key('playlate') else None
@@ -103,8 +103,8 @@ class WbcMetaEvent( object ):
 
         return entries
 
-class WbcMetaOther( object ):
 
+class WbcMetaOther(object):
     def __init__(self):
         pass
 
@@ -112,15 +112,15 @@ class WbcMetaOther( object ):
     def load_csv(cls, pathname):
         entries = OrderedDict()
 
-
-
         return entries
 
-class WbcMetadata( object ):
+
+class WbcMetadata(object):
     """Load metadata about events that is not available from other sources"""
 
-    now = datetime.now( TZ )
+    now = datetime.now(TZ)
     this_year = now.year
+    yy = this_year % 100  # Yes, this will probably fail in 2100
 
     # List of events to debug
     tracking = [
@@ -137,14 +137,18 @@ class WbcMetadata( object ):
     ]
 
     # Data file names
-    EVENTCODES = os.path.join( "meta", "wbc-event-codes.csv" )
-    OTHERCODES = os.path.join( "meta", "wbc-other-codes.csv" )
+    EVENTCODES = os.path.join("meta", "wbc-event-codes.csv")
+    OTHERCODES = os.path.join("meta", "wbc-other-codes.csv")
 
-    SITE_URL = "http://boardgamers.org/"
+    SITE_URL = "http://boardgamers.org/wbc%02d/" % yy
     PREVIEW_INDEX_URL = SITE_URL + "previews_%d.html"
 
-    # Bad code in event preview index -> actual event code
-    MISCODES = {}  # {'gmb': 'GBM',}
+    # Bad code in event preview index -> actual event code {'gmb': 'GBM',}
+    MISCODES = {
+        'Iron Men - WSM': 'WSM',
+    }
+
+    SPECIAL_PREVIEWS = ['Junior Events', 'Seminars', 'Game Demos']
 
     others = []  # List of non-tournament event matching data
     special = []  # List of non-tournament event codes
@@ -173,32 +177,32 @@ class WbcMetadata( object ):
     debug = False  # True for debugging and even more detailed logging
 
     def __init__(self):
-        self.process_options( )
-        self.load_tourney_codes( )
-        self.load_other_codes( )
-        self.load_preview_index( )
+        self.process_options()
+        self.load_tourney_codes()
+        self.load_other_codes()
+        self.load_preview_index()
 
     def process_options(self):
         """
         Parse command line options
         """
 
-        parser = OptionParser( )
-        parser.add_option( "-y", "--year", dest="year", metavar="YEAR", default=self.this_year, help="Year to process" )
-        parser.add_option( "-t", "--type", dest="type", metavar="TYPE", default="xls",
-                           help="Type of file to process (csv,xls)" )
-        parser.add_option( "-i", "--input", dest="input", metavar="FILE", default=None,
-                           help="Schedule spreadsheet to process" )
-        parser.add_option( "-o", "--output", dest="output", metavar="DIR", default="build",
-                           help="Directory for results" )
-        parser.add_option( "-f", "--full-report", dest="fullreport", action="store_true", default=False )
-        parser.add_option( "-n", "--dry-run", dest="write_files", action="store_false", default=True )
-        parser.add_option( "-v", "--verbose", dest="verbose", action="store_true", default=False )
-        parser.add_option( "-d", "--debug", dest="debug", action="store_true", default=False )
+        parser = OptionParser()
+        parser.add_option("-y", "--year", dest="year", metavar="YEAR", default=self.this_year, help="Year to process")
+        parser.add_option("-t", "--type", dest="type", metavar="TYPE", default="xls",
+                          help="Type of file to process (csv,xls)")
+        parser.add_option("-i", "--input", dest="input", metavar="FILE", default=None,
+                          help="Schedule spreadsheet to process")
+        parser.add_option("-o", "--output", dest="output", metavar="DIR", default="build",
+                          help="Directory for results")
+        parser.add_option("-f", "--full-report", dest="fullreport", action="store_true", default=False)
+        parser.add_option("-n", "--dry-run", dest="write_files", action="store_false", default=True)
+        parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False)
+        parser.add_option("-d", "--debug", dest="debug", action="store_true", default=False)
 
-        options, dummy_args = parser.parse_args( )
+        options, dummy_args = parser.parse_args()
 
-        self.year = int( options.year )
+        self.year = int(options.year)
         self.type = options.type
         self.input = options.input
         self.output = options.output
@@ -208,25 +212,25 @@ class WbcMetadata( object ):
         self.debug = options.debug
 
         if self.debug:
-            logging.root.setLevel( logging.DEBUG )
+            logging.root.setLevel(logging.DEBUG)
         elif self.verbose:
-            logging.root.setLevel( logging.INFO )
+            logging.root.setLevel(logging.INFO)
         else:
-            logging.root.setLevel( logging.WARN )
+            logging.root.setLevel(logging.WARN)
 
     def load_tourney_codes(self):
         """
         Load all of the tourney codes (and alternate names) from their data file.
         """
 
-        LOGGER.debug( 'Loading tourney event codes' )
-        self.eventmeta = WbcMetaEvent.load_json( os.path.join( 'meta', 'wbc-event-codes.json' ) )
+        LOG.debug('Loading tourney event codes')
+        self.eventmeta = WbcMetaEvent.load_json(os.path.join('meta', 'wbc-event-codes.json'))
         # WbcMetaEvent.save_json( os.path.join( 'meta', 'new-event-codes.json'), self.eventmeta )
 
         for code, entry in self.eventmeta.items():
             self.codes[entry.name] = code
             self.names[code] = entry.name
-            self.tourneys.append( code )
+            self.tourneys.append(code)
             for altname in entry.altnames:
                 self.codes[altname] = code
 
@@ -235,18 +239,18 @@ class WbcMetadata( object ):
         Load all of the non-tourney codes from their data file.
         """
 
-        LOGGER.debug( 'Loading non-tourney event codes' )
+        LOG.debug('Loading non-tourney event codes')
 
-        codefile = csv.DictReader( open( self.OTHERCODES ) )
+        codefile = csv.DictReader(open(self.OTHERCODES))
         for row in codefile:
-            c = row['Code'].strip( )
-            d = row['Description'].strip( )
-            n = row['Name'].strip( )
-            f = row['Format'].strip( )
+            c = row['Code'].strip()
+            d = row['Description'].strip()
+            n = row['Name'].strip()
+            f = row['Format'].strip()
 
             other = {'code': c, 'description': d, 'name': n, 'format': f}
-            self.others.append( other )
-            self.special.append( c )
+            self.others.append(other)
+            self.special.append(c)
             self.names[c] = d
 
     def load_preview_index(self):
@@ -254,50 +258,82 @@ class WbcMetadata( object ):
         Load all of the links to the event previews and map them to event codes
         """
 
-        LOGGER.debug( 'Loading event preview index' )
+        LOG.debug('Loading event preview index')
 
-        index = parse_url( self.PREVIEW_INDEX_URL % (self.year,) )
+        url = self.PREVIEW_INDEX_URL % self.year
+        index = parse_url(url)
         if not index:
-            LOGGER.error( 'Unable to load Preview index' )
+            LOG.error('Unable to load Preview index: %s', url)
             return
 
         # Find the preview table
-        table = index.find( 'table' ).find( 'table' ).find( 'table' ).find( 'table' )
-        rows = list( table.findAll( 'tr' ) )
-        for line in range( 0, len( rows ), 3 ):  # 3 rows per actual line
-            top = list( rows[line].findAll( 'td' ) )
-            mid = list( rows[line + 1].findAll( 'td' ) )
-            for column in range( 0, 8 ):  # Always 8 cells
+        table = index.find('table').find('table').find('table').find('table')
+        rows = list(table.findAll('tr'))
+        for line in range(0, len(rows), 3):  # 3 rows per actual line
+            top = list(rows[line].findAll('td'))
+            mid = list(rows[line + 1].findAll('td'))
+            for column in range(0, 8):  # Always 8 cells
                 link = name = code = None
 
                 try:
-                    if type( top[column].contents[0] ) == NavigableString:
+                    top_column = top[column]
+                    mid_column = mid[column]
+
+                    if type(top_column.contents[0]) == NavigableString:
                         continue  # No link, no useful data
-                    link = top[column].a['href']
+                    link = top_column.a['href']
 
-                    if type( mid[column].contents[0] ) == NavigableString:
-                        name = normalize( unicode( mid[column].contents[0] ) ).strip( )
-                        if name == 'Junior Events':
-                            continue
-                        m = re.match( "(.*) \((...)\)", name )
+                    if link.endswith('wsm.html'):
+                        pass
+
+                    if type(mid_column.contents[0]) == NavigableString:
+                        name = normalize(unicode(mid_column.contents[0])).strip()
+                        if name in self.SPECIAL_PREVIEWS:
+                            continue  # Not a single event schedule
+
+                        m = re.match("(.*) \((...)\)", name)
                         if m:
-                            name = normalize( unicode( m.group( 1 ) ) )
-                            code = normalize( unicode( m.group( 2 ) ) )
+                            name = normalize(unicode(m.group(1)))
+                            code = normalize(unicode(m.group(2)))
                         else:
-                            code = normalize( unicode( mid[column].contents[2] ) ).strip( )
+                            code = normalize(unicode(mid_column.contents[2])).strip()
                     else:
-                        name = normalize( unicode( mid[column].p.contents[0] ) ).strip( )
-                        code = normalize( unicode( mid[column].p.contents[2] ) ).strip( )
+                        if mid_column.p:
+                            name = normalize(unicode(mid_column.p.contents[0])).strip()
+                            if name in self.SPECIAL_PREVIEWS:
+                                continue  # Not a single event schedule
+                            code = normalize(unicode(mid_column.p.contents[2])).strip()
+                        elif mid_column.span:
+                            name = normalize(unicode(mid_column.span.contents[0])).strip()
+                            if len(mid_column.span.contents) == 3:
+                                code = normalize(unicode(mid_column.span.contents[2])).strip()
+                            elif name in self.SPECIAL_PREVIEWS:
+                                continue  # Not a single event schedule
+                            else:
+                                m = re.match("(.*) - (...)", name)
+                                if m:
+                                    name = m.group(1)
+                                    code = m.group(2)
+                                else:
+                                    raise AssertionError("Cannot parse name/code")
 
-                    code = code.replace( '(', '' ).replace( ')', '' )
+                    code = code.replace('(', '').replace(')', '')
 
                     # Map page codes to event codes
-                    code = self.MISCODES[code] if self.MISCODES.has_key( code ) else code.upper( )
+                    if code in self.MISCODES:
+                        code = self.MISCODES[code]
+                    else:
+                        code = code.upper()
 
                     self.url[code] = self.SITE_URL + link
 
                 except Exception as e:
-                    LOGGER.debug( "Skipping line %d, column %d: %s" % (line, column, e.message) )
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    LOG.warn("On line %d, skipping preview row %d, column %d: %s" % (
+                    exc_tb.tb_lineno, line / 3, column, e.message))
+                    pass
+
+        LOG.warn("Found %d events in preview", len(self.url))
 
     def check_date(self, event_date):
         """Check to see if this event date is the earliest event date seen so far"""
