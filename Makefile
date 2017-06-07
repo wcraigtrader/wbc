@@ -2,7 +2,7 @@
 
 SITE=http://boardgamers.org/downloads/
 SCHEDULE=schedule
-YEAR=2016
+YEAR=2017
 EXT=.xlsx
 REMOTE=trader.name:/data/web/trader/wbc
 # REMOTE=wbc.trader.name:/var/www/wbc/schedule
@@ -61,3 +61,4 @@ prerequisites:
 	sudo pip install --upgrade beautifulsoup4
 	sudo pip install --upgrade xlrd
 	sudo pip install --upgrade lxml
+	sudo pip install --upgrade requests_cache
