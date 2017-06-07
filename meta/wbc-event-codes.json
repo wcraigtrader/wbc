@@ -130,6 +130,7 @@
       "Battles American Rev",
       "Battles of Am Rev",
       "Battles of Am Revolution",
+      "Battles of AM Revolution",
       "Battles of Am. Revolution"
     ]
   },
@@ -169,7 +170,8 @@
     "name": "Settlers of Catan: Cities & Knights",
     "altnames": [
       "Catan: Cities & Knights",
-      "Catan; Cities & Knights"
+      "Catan; Cities & Knights",
+      "Catan:  Cities & Knights"
     ]
   },
   "CAR": {
@@ -281,7 +283,10 @@
     "name": "Empire Builder"
   },
   "EVL": {
-    "name": "Evolution"
+    "name": "Evolution",
+    "altnames": [
+      "Evolution & Climate"
+    ]
   },
   "FBS": {
     "name": "Football Strategy"
@@ -450,7 +455,10 @@
     "name": "Maria"
   },
   "MCK": {
-    "name": "MetaCheckers"
+    "name": "MetaCheckers",
+    "altnames": [
+      "Metacheckers"
+    ]
   },
   "MED": {
     "name": "Medici",
@@ -460,7 +468,10 @@
     "name": "Manifest Destiny"
   },
   "MGW": {
-    "name": "Mage Wars"
+    "name": "Mage Wars",
+    "altnames": [
+      "Mage Wars Arena"
+    ]
   },
   "MMA": {
     "name": "Monsters Menace America",
@@ -512,7 +523,10 @@
     ]
   },
   "PGC": {
-    "name": "Power Grid: The Card Game"
+    "name": "Power Grid: The Card Game",
+    "altnames": [
+      "Power Grid Card Game"
+    ]
   },
   "PGD": {
     "name": "Power Grid"
@@ -542,6 +556,7 @@
     "name": "Star Wars: Queen's Gambit",
     "altnames": [
       "Queen's Gambit",
+      "Star Wars:  Queen's Gambit",
       "Star Wars Queen's Gambit",
       "Star Wars: Queens Gambit",
       "Star Wars; Queen's Gambit",
@@ -573,7 +588,8 @@
       "Ra: the Dice Game",
       "Ra:The Dice Game",
       "Ra; The Dice Game",
-      "Ra; the Dice Game"
+      "Ra; the Dice Game",
+      "Ra:  The Dice Game"
     ]
   },
   "RFG": {
