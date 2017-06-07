@@ -88,17 +88,8 @@ class Token(object):
         cls.add_event('After Action', 'After Action Briefing', 'After Action Meeting')
         cls.add_event('Seminar', 'Optional Seminar')
         cls.add_event('Draft', 'DRAFT')
-
-        # cls.add_event( 'H1' )
-        # cls.add_event( 'H2' )
-        # cls.add_event( 'H3' )
-        # cls.add_event( 'H4' )
-        # cls.add_event( 'R1' )
-        # cls.add_event( 'R2' )
-        # cls.add_event( 'R3' )
-        # cls.add_event( 'R4' )
-        # cls.add_event( 'R5' )
-        # cls.add_event( 'R6' )
+        cls.add_event('Fleet Action')
+        cls.add_event('MegaCiv MP Game')
 
         cls.add_qualifier('PC', 'Grognard PC')
         cls.add_qualifier('AFC')
@@ -195,13 +186,14 @@ class Token(object):
         cls.add_room('First Tracks Center', 'Ski Lodge First Tracks Center')
         cls.add_room('First Tracks Poolside', 'Ski Lodge First Tracks Poolside')
         cls.add_room('First Tracks Slopeside', 'Ski Lodge First Tracks Slopeside')
+        cls.add_room('Foggy Brews')
         cls.add_room('Foggy Goggle Center', 'Ski Lodge Foggy Goggle Center')
         cls.add_room('Foggy Goggle Front', 'Ski Lodge Foggy Goggle Front')
         cls.add_room('Foggy Goggle Rear', 'Ski Lodge Foggy Goggle Rear')
         cls.add_room('Fox Den')
         cls.add_room('Hemlock')
         cls.add_room('Laurel')
-        cls.add_room('Maple Room', 'Ski Lodge Maple Room')
+        cls.add_room('Maple Room', 'Maple', 'Ski Lodge Maple Room')
         cls.add_room('Rathskeller')
         cls.add_room('Seasons')
         cls.add_room('Seasons 1')
@@ -210,14 +202,16 @@ class Token(object):
         cls.add_room('Seasons 1-4')
         cls.add_room('Seasons 1-5')
         cls.add_room('Seasons 2')
+        cls.add_room('Seasons 2-3')
         cls.add_room('Seasons 2-4')
         cls.add_room('Seasons 2-5')
         cls.add_room('Seasons 3')
         cls.add_room('Seasons 3-4')
         cls.add_room('Seasons 3-5')
+        cls.add_room('Seasons 4')
         cls.add_room('Seasons 4-5')
         cls.add_room('Seasons 5')
-        cls.add_room('Snowflake Forum')
+        cls.add_room('Snowflake Forum', 'Snowflake')
         cls.add_room('Stag Pass')
         cls.add_room('Sunburst Forum')
         cls.add_room('Timberstone')
@@ -226,6 +220,7 @@ class Token(object):
         # Misspelled Room Names
         cls.add_room('Ski Lodge Fast Tracks Center')
         cls.add_room('Ski Lodge Foggie Goggle Front')
+        cls.add_room('Fast Tracks Slopeside')
 
     @classmethod
     def initialize_host_rooms(cls):
@@ -430,7 +425,7 @@ class Token(object):
 
         if junk:
             hjunk = junk.encode('unicode_escape')
-            LOG.debug('Skipped [%s] in [%s]', hjunk, hdata)
+            LOG.log(logging.NOTSET, 'Skipped [%s] in [%s]', hjunk, hdata)
 
         return tokens
 
@@ -514,6 +509,15 @@ class Parser(object):
         """
         e1 = self.next()
         return (e1.label,)
+
+    def match_qualified_event(self):
+        """
+        Match 'Qualifier' 'Event'
+        Stop [ 'Day' ]
+        """
+        q = self.next()
+        e = self.next()
+        return e.label, q.label
 
     def match_multiple_heats(self):
         """
@@ -670,16 +674,10 @@ class WbcPreview(object):
         def tokenize_events(self, paras):
             for para in paras:
                 text = para.text.strip()
-                if text.startswith('Demo') and self.code not in ['775', '7WD', '989', 'AOA']:
-                    self.event_tokens.append(Token.tokenize_text(text))
-                elif self.code in ['HRC']:
-                    if text:
-                        self.event_tokens.append(Token.tokenize_text(text))
-                else:
-                    for line in text.split('\n'):
-                        stripped = line.strip()
-                        if stripped:
-                            self.event_tokens.append(Token.tokenize_text(stripped))
+                for line in text.split('\n'):
+                    stripped = line.strip()
+                    if stripped:
+                        self.event_tokens.append(Token.tokenize_text(stripped))
 
             if self.code in WbcPreview.tracking:
                 for section in Token.encode_list(self.event_tokens):
@@ -704,7 +702,11 @@ class WbcPreview(object):
             Demo <day> <time> & <day> <time> & <time> & <day> <time> & <day> <time> @ <room>
             """
 
+            row_number = 0
             for row in self.event_tokens:
+                LOG.debug("Tourney %s Parsing row %d: %s", self.code, row_number, row)
+                row_number += 1
+
                 p = Parser(row)
                 if p.has('Event', Token.SLASH, 'Event', Token.SLASH, 'Event', 'Day'):
                     elist = p.match_3_events()
@@ -818,6 +820,19 @@ class WbcPreview(object):
                         else:
                             self.heats.add(n)
 
+                elif p.has('Qualifier', 'Event', 'Day'):
+                    event = p.match_qualified_event()
+                    times = p.match_date_times()
+                    room = p.match_room()
+                    ename = ' '.join(event)
+                    if len(times) == 0:
+                        self.notes.append('Preview missing start time for %s in %s' % (ename, room))
+                    elif len(times) > 1:
+                        self.notes.append('Preview has extra start times for %s in %s' % (ename, room))
+                    else:
+                        self.add_event(ename, times[0], room)
+
+
                 elif p.has('Event', 'Day'):
                     event = p.match_event()
                     times = p.match_date_times()
@@ -881,8 +896,9 @@ class WbcPreview(object):
         Token.initialize()
 
         LOG.info("Loading event previews...")
+        LOG.debug("Assuming first day is %s", self.meta.first_day)
 
-        for code, url in self.meta.url.items():
+        for code, url in sorted( self.meta.url.items() ):
             LOG.debug("Loading event preview for %s: %s", code, url)
             if len(self.tracking) and code not in self.tracking:
                 continue
