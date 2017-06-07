@@ -124,6 +124,7 @@ class WbcMetadata(object):
 
     # List of events to debug
     tracking = [
+        # 'EVL',
         # 'SSB',
         # 'WAW',
         # 'AFK', 'BWD', 'GBG', 'PZB', 'SQL', 'TRC', 'WAT', 'WSM'
@@ -131,9 +132,9 @@ class WbcMetadata(object):
 
     # List of events for my personal calendar
     personal = [
-        '7WD', 'C&K', 'CMK', 'EPB', 'IOV', 'KOT',
-        'PGD', 'PRO', 'RFG', 'RGD', 'RRR', 'RRY',
-        'SJN', 'SMW', 'SPD', 'TAM', 'TTR', 'VSD',
+        '7WD', 'BRS', 'COB', 'C&K', 'EPB', 'IOV', 'KOT',
+        'PGC', 'PGD', 'PRO', 'RFG', 'RGD', 'RRR', 'RRY',
+        'SCY', 'SJN', 'SMW', 'SPD', 'TAM', 'TTR', 'T_M', 'TFM', 'VSD',
     ]
 
     # Data file names
