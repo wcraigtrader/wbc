@@ -1,6 +1,6 @@
 #! /usr/bin/env python2.7
 
-#----- Copyright (c) 2010-2016 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2016 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -29,47 +29,27 @@ from WbcPreview import WbcPreview
 from WbcScheduleComparison import ScheduleComparer
 from WbcSpreadsheet import WbcSchedule
 
-logging.basicConfig( level=logging.INFO )
-logging.getLogger( 'requests' ).setLevel( logging.WARN )
-LOG = logging.getLogger( 'WBC' )
+logging.basicConfig(level=logging.INFO)
+logging.getLogger('requests').setLevel(logging.WARN)
+LOG = logging.getLogger('WBC')
 
-#----- Real work happens here ------------------------------------------------
+# ----- Real work happens here ------------------------------------------------
 
 if __name__ == '__main__':
-
     meta = WbcMetadata()
 
-    # Parse the WBC Preview
-    # wbc_preview = WbcPreview( meta )
-    # sys.exit(0)
-
     # Load a schedule from a spreadsheet, based upon commandline options.
-    wbc_schedule = WbcSchedule( meta )
+    wbc_schedule = WbcSchedule(meta)
+    wbc_schedule.create_all_calendars()
 
-    # Create calendar events from all of the spreadsheet events.
-    wbc_schedule.create_wbc_calendars()
-
-    if meta.write_files:
-        # Write the individual event calendars.
-        wbc_schedule.write_all_calendar_files()
-
-        # Build the HTML index.
-        wbc_schedule.write_index_page()
-
-        # Output an improved copy of the input spreadsheet, in CSV
-        wbc_schedule.write_spreadsheet()
-
-    # Print the unmatched events for rework.
-    wbc_schedule.report_unprocessed_events()
+    # Parse the WBC Preview
+    wbc_preview = WbcPreview(meta)
 
     # Parse the WBC All-in-One schedule
-    wbc_allinone = WbcAllInOne( meta )
-
-    # Parse the WBC Preview
-    wbc_preview = WbcPreview( meta )
+    wbc_allinone = WbcAllInOne(meta)
 
     # Compare the event calendars with the WBC All-in-One schedule and the preview
-    comparer = ScheduleComparer( meta, wbc_schedule, wbc_allinone, wbc_preview )
+    comparer = ScheduleComparer(meta, wbc_schedule, wbc_allinone, wbc_preview)
     comparer.verify_event_calendars()
 
-    LOG.info( "Done." )
+    LOG.info("Done.")
