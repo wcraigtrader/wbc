@@ -44,6 +44,18 @@ class WbcRow(object):
     """
     A WbcRow encapsulates information about a single schedule line from the
     WBC schedule spreadsheet. This line may result in a dozen or more calendar events.
+
+    Date: MM/DD/YYYY
+    Time: Integer, Event start hour
+    Event: Event name with codes
+    Prize: Number of plaques awarded (1-6)
+    Class: 'A', 'B', 'C', otherwise blank if inapplicable
+    Format: Tournament format for this session
+    LN: 'Y' if late night event, otherwise blank
+    FF: 'Y' if free form event, otherwise blank
+    Continuous: 'Y' if this entry refers to multiple events, scheduled back-to-back
+    GM: Game Master for this event
+    Location: Which room name (and table name for demos)
     """
 
     FIELDS = ['Date', 'Time', 'Event', 'Prize', 'Class', 'Format', 'Duration', 'Continuous', 'GM', 'Location', 'Code']
@@ -88,6 +100,9 @@ class WbcRow(object):
         if self.duration is None:
             LOGGER.warning('Missing duration on %s', self)
             self.duration = '0'
+
+        if self.date.__class__ is not datetime:
+            raise ValueError('Unreadable date (%s)' % self.date)
 
         if self.name.endswith('Final'):  # Replace trailing 'Final' with 'F'
             self.name = self.name[:-4]
@@ -498,8 +513,11 @@ class WbcSchedule(object):
         for i in range(1, sheet.nrows):
             if self.meta.verbose:
                 LOGGER.debug('Reading row %d' % (i + 1))
-            event_row = WbcXlsRow(self, i + 1, header, sheet.row(i), book.datemode)
-            self.categorize_row(event_row)
+            try:
+                event_row = WbcXlsRow(self, i + 1, header, sheet.row(i), book.datemode)
+                self.categorize_row(event_row)
+            except Exception as e:
+                LOGGER.error('Skipped row %d: %s', i+1, e.message)
 
     def categorize_row(self, row):
         """
