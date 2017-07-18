@@ -268,15 +268,16 @@ class WbcMetadata(object):
             return
 
         # Find the preview table
-        table = index.find('table').find('table').find('table').find('table')
+        table = index.find('table').find('table').find('table').findAll('table')[1]
         rows = list(table.findAll('tr'))
         for line in range(0, len(rows), 3):  # 3 rows per actual line
-            top = list(rows[line].findAll('td'))
-            mid = list(rows[line + 1].findAll('td'))
-            for column in range(0, 8):  # Always 8 cells
-                link = name = code = None
+            column = -1
+            try:
+                top = list(rows[line].findAll('td'))
+                mid = list(rows[line + 1].findAll('td'))
+                for column in range(0, 8):  # Always 8 cells
+                    link = name = code = None
 
-                try:
                     top_column = top[column]
                     mid_column = mid[column]
 
@@ -328,11 +329,11 @@ class WbcMetadata(object):
 
                     self.url[code] = self.SITE_URL + link
 
-                except Exception as e:
-                    exc_type, exc_obj, exc_tb = sys.exc_info()
-                    LOG.warn("On line %d, skipping preview row %d, column %d: %s" % (
-                    exc_tb.tb_lineno, line / 3, column, e.message))
-                    pass
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                LOG.warn("On line %d, skipping preview row %d, column %d: %s" % (
+                exc_tb.tb_lineno, line / 3, column, e.message))
+                pass
 
         LOG.warn("Found %d events in preview", len(self.url))
 
