@@ -19,7 +19,7 @@ all:	build
 .PHONY:	build clean compare fetch prerequisites push backup
 
 build:	
-	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD) -y $(YEAR)
+	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD)
 
 dryrun:
 	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD) -n
@@ -30,7 +30,7 @@ pull:
 	rsync -v -rclD --delete $(REMOTE)/$(YEAR)/ live/
 
 publish:
-	rsync -v -rclD --delete $(BUILD)/ $(REMOTE)/$(YEAR)/
+	rsync -rclD --delete $(BUILD)/ $(REMOTE)/$(YEAR)/
 
 clean:
 	rm -rf $(BUILD)
@@ -43,7 +43,7 @@ very-clean: clean
 backup:
 	rm -rf save
 	mkdir save
-	rsync -av $(BUILD)/ save/
+	rsync -a $(BUILD)/ save/
 
 fetch:
 	wget -nv -O $(NEW_SPREADSHEET) $(SITE)$(SPREADSHEET)
