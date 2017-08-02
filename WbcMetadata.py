@@ -132,8 +132,8 @@ class WbcMetadata(object):
 
     # List of events for my personal calendar
     personal = [
-        '7WD', 'BRS', 'COB', 'C&K', 'EPB', 'IOV', 'KOT',
-        'PGC', 'PGD', 'PRO', 'RFG', 'RGD', 'RRR', 'RRY',
+        '7WD', 'COB', 'C&K', 'IOV', 'KOT',
+        'PGC', 'PGD', 'PRO', 'RFG', 'RGD', 'RRY',
         'SCY', 'SJN', 'SMW', 'SPD', 'TAM', 'TTR', 'T_M', 'TFM', 'VSD',
     ]
 

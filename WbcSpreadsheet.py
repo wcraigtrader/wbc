@@ -102,6 +102,7 @@ class WbcRow(object):
             self.duration = '0'
 
         if self.date.__class__ is not datetime:
+            LOGGER.error('Unreadable date on %s', self)
             raise ValueError('Unreadable date (%s)' % self.date)
 
         if self.name.endswith('Final'):  # Replace trailing 'Final' with 'F'
