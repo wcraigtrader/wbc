@@ -7,7 +7,7 @@ EXT=.xlsx
 REMOTE=trader.name:/data/web/trader/wbc
 # REMOTE=wbc.trader.name:/var/www/wbc/schedule
 
-SPREADSHEET=$(SCHEDULE)$(YEAR)$(EXT)
+SPREADSHEET="2018 App Schedule v1.3.1.xlsx"
 OLD_SPREADSHEET=$(SCHEDULE)$(YEAR).old
 NEW_SPREADSHEET=$(SCHEDULE)$(YEAR).new
 
@@ -19,10 +19,10 @@ all:	build
 .PHONY:	build clean compare fetch prerequisites push backup
 
 build:	
-	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD)
+	python WBC.py -t new -i $(SPREADSHEET) -o $(BUILD)
 
 dryrun:
-	python WBC.py -i $(SCHEDULE)$(YEAR)$(EXT) -o $(BUILD) -n
+	python WBC.py -t new -i $(SPREADSHEET) -o $(BUILD) -n
 
 pull:
 	rm -rf live
@@ -57,8 +57,8 @@ fetch:
 	fi
 
 prerequisites:
-	sudo pip install --upgrade icalendar
-	sudo pip install --upgrade beautifulsoup4
-	sudo pip install --upgrade xlrd
-	sudo pip install --upgrade lxml
-	sudo pip install --upgrade requests_cache
+	sudo -H pip install --upgrade icalendar
+	sudo -H pip install --upgrade beautifulsoup4
+	sudo -H pip install --upgrade xlrd
+	sudo -H pip install --upgrade lxml
+	sudo -H pip install --upgrade requests_cache

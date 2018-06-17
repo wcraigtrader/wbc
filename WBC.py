@@ -1,6 +1,6 @@
 #! /usr/bin/env python2.7
 
-# ----- Copyright (c) 2010-2017 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2018 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -17,17 +17,15 @@
 
 """WBC: Generate iCal calendars from the WBC Schedule spreadsheet"""
 
-# xxlint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0612,W0621,W0702,W0703
-# pylint: disable=C0103,C0301,C0302,R0902,R0903,R0904,R0912,R0913,R0914,W0702
-
 import logging
-import sys
 
 from WbcAllInOne import WbcAllInOne
+from WbcCalendars import WbcWebcal
 from WbcMetadata import WbcMetadata
+from WbcNewSpreadsheet import WbcNewSchedule
+from WbcOldSpreadsheet import WbcOldSchedule
 from WbcPreview import WbcPreview
 from WbcScheduleComparison import ScheduleComparer
-from WbcSpreadsheet import WbcSchedule
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger('requests').setLevel(logging.WARN)
@@ -38,9 +36,22 @@ LOG = logging.getLogger('WBC')
 if __name__ == '__main__':
     meta = WbcMetadata()
 
-    # Load a schedule from a spreadsheet, based upon commandline options.
-    wbc_schedule = WbcSchedule(meta)
-    wbc_schedule.create_all_calendars()
+    # Create a calendar set
+    wbc_calendars = WbcWebcal(meta)
+
+    # Load a schedule from a spreadsheet, and populate the calendars, based upon commandline options.
+    wbc_schedule = None
+    if meta.type == 'old':
+        wbc_schedule = WbcOldSchedule(meta, wbc_calendars)
+    elif meta.type == 'new':
+        wbc_schedule = WbcNewSchedule(meta, wbc_calendars)
+    else:
+        raise ValueError('Did not recognize spreadsheet type: %s' % meta.type)
+
+    wbc_calendars.create_all_calendars()
+
+    if meta.write_files:
+        wbc_schedule.write_all_files()
 
     # Parse the WBC Preview
     wbc_preview = WbcPreview(meta)

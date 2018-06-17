@@ -14,14 +14,14 @@
     <script language="javascript">
       function webcal( filename ) {
         var x = window.location + filename;
-        x = x.replace( 'http:', 'webcal:' )
-        x = x.replace( '#', '' )
+        x = x.replace( 'http:', 'webcal:' );
+        x = x.replace( '#', '' );
         window.open( x );
       }
       function gcal( filename ) {
           var x = window.location + filename;
-          x = x.replace( 'http:', 'https://www.google.com/calendar/render?cid=http:' )
-          x = x.replace( '#', '' )
+          x = x.replace( 'http:', 'https://www.google.com/calendar/render?cid=http:' );
+          x = x.replace( '#', '' );
           window.open( x );
         }
     </script>

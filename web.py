@@ -1,6 +1,6 @@
 #! /usr/bin/env python2.7
 
-# ----- Copyright (c) 2010-2017 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2018 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -17,12 +17,12 @@
 
 import codecs
 import logging
+import time
+from datetime import timedelta
+
 import requests
 import requests_cache
-import time
-
 from bs4 import BeautifulSoup
-from datetime import timedelta
 
 # ----- Globals ---------------------------------------------------------------
 

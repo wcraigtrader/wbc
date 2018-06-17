@@ -1,4 +1,4 @@
-# ----- Copyright (c) 2010-2017 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2018 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -13,23 +13,24 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from collections import OrderedDict
-from datetime import datetime
-from optparse import OptionParser
 import csv
 import json
 import logging
 import os
 import re
 import sys
+from collections import OrderedDict
+from datetime import datetime
+from optparse import OptionParser
 
 from bs4 import NavigableString
-from WbcUtility import parse_url, TZ, normalize
+
+from WbcUtility import parse_url, TZ, normalize, nu_strip
 
 LOG = logging.getLogger('WbcMetaData')
 
 
-# ----- WBC Meta Data ---------------------------------------------------------
+# ----- JSON classes ----------------------------------------------------------
 
 class WbcJsonEncoder(json.JSONEncoder):
     def default(self, o):
@@ -38,6 +39,8 @@ class WbcJsonEncoder(json.JSONEncoder):
 
         return json.JSONEncoder.default(self, o)
 
+
+# ----- WBC Meta Data ---------------------------------------------------------
 
 class WbcMetaEvent(object):
     def __init__(self, c, n):
@@ -130,12 +133,12 @@ class WbcMetadata(object):
         # 'AFK', 'BWD', 'GBG', 'PZB', 'SQL', 'TRC', 'WAT', 'WSM'
     ]
 
-    # List of events for my personal calendar
-    personal = [
-        '7WD', 'COB', 'C&K', 'IOV', 'KOT',
-        'PGC', 'PGD', 'PRO', 'RFG', 'RGD', 'RRY',
-        'SCY', 'SJN', 'SMW', 'SPD', 'TAM', 'TTR', 'T_M', 'TFM', 'VSD',
-    ]
+    # # List of events for my personal calendar
+    # personal = [
+    #     '7WD', 'COB', 'C&K', 'IOV', 'KOT',
+    #     'PGC', 'PGD', 'PRO', 'RFG', 'RGD', 'RRY',
+    #     'SCY', 'SJN', 'SMW', 'SPD', 'TAM', 'TTR', 'T_M', 'TFM', 'VSD',
+    # ]
 
     # Data file names
     EVENTCODES = os.path.join("meta", "wbc-event-codes.csv")
@@ -149,7 +152,7 @@ class WbcMetadata(object):
         'Iron Men - WSM': 'WSM',
     }
 
-    SPECIAL_PREVIEWS = ['Junior Events', 'Seminars', 'Game Demos']
+    SPECIAL_PREVIEWS = ['Junior Events', 'Seminars', 'Demonstrations']
 
     others = []  # List of non-tournament event matching data
     special = []  # List of non-tournament event codes
@@ -167,20 +170,29 @@ class WbcMetadata(object):
     url = {}  # Code -> URL for event preview for this event code
 
     first_day = None  # First calendar day for this year's convention
+    last_day = None  # Last calendar day for this year's convention
+
+    day_names = [
+        'First Friday', 'First Saturday', 'First Sunday',
+        'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+        'Second Monday'
+    ]
+    day_codes = ['FFr', 'FSa', 'FSu', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su', 'SMo']
 
     year = this_year  # Year to process
-    type = "xls"  # Type of spreadsheet to parse
+    type = 'new'  # Type of spreadsheet to parse
     input = None  # Name of spreadsheet to parse
-    output = "site"  # Name of directory for results
+    output = 'build'  # Name of directory for results
     write_files = True  # Whether or not to output files
-    fullreport = False  # True for more detailed discrepancy reporting
+    full_report = False  # True for more detailed discrepancy reporting
     verbose = False  # True for more detailed logging
     debug = False  # True for debugging and even more detailed logging
 
     def __init__(self):
         self.process_options()
-        self.load_tourney_codes()
-        self.load_other_codes()
+        if self.type == 'old':
+            self.load_tourney_codes()
+            self.load_other_codes()
         self.load_preview_index()
 
     def process_options(self):
@@ -190,12 +202,11 @@ class WbcMetadata(object):
 
         parser = OptionParser()
         parser.add_option("-y", "--year", dest="year", metavar="YEAR", default=self.this_year, help="Year to process")
-        parser.add_option("-t", "--type", dest="type", metavar="TYPE", default="xls",
-                          help="Type of file to process (csv,xls)")
+        parser.add_option("-t", "--type", dest="type", metavar="TYPE", default="new",
+                          help="Type of file to process (old,new)")
         parser.add_option("-i", "--input", dest="input", metavar="FILE", default=None,
                           help="Schedule spreadsheet to process")
-        parser.add_option("-o", "--output", dest="output", metavar="DIR", default="build",
-                          help="Directory for results")
+        parser.add_option("-o", "--output", dest="output", metavar="DIR", default="build", help="Directory for results")
         parser.add_option("-f", "--full-report", dest="fullreport", action="store_true", default=False)
         parser.add_option("-n", "--dry-run", dest="write_files", action="store_false", default=True)
         parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False)
@@ -207,7 +218,7 @@ class WbcMetadata(object):
         self.type = options.type
         self.input = options.input
         self.output = options.output
-        self.fullreport = options.fullreport
+        self.full_report = options.fullreport
         self.write_files = options.write_files
         self.verbose = options.verbose
         self.debug = options.debug
@@ -226,7 +237,6 @@ class WbcMetadata(object):
 
         LOG.debug('Loading tourney event codes')
         self.eventmeta = WbcMetaEvent.load_json(os.path.join('meta', 'wbc-event-codes.json'))
-        # WbcMetaEvent.save_json( os.path.join( 'meta', 'new-event-codes.json'), self.eventmeta )
 
         for code, entry in self.eventmeta.items():
             self.codes[entry.name] = code
@@ -270,11 +280,22 @@ class WbcMetadata(object):
         # Find the preview table
         table = index.find('table').find('table').find('table').findAll('table')[1]
         rows = list(table.findAll('tr'))
-        for line in range(0, len(rows), 3):  # 3 rows per actual line
+        line = 0
+        while line < len(rows):
             column = -1
             try:
+                if len(rows) - line < 3:
+                    LOG.error("Preview lines out of sync -- quitting")
+                    continue
+
                 top = list(rows[line].findAll('td'))
                 mid = list(rows[line + 1].findAll('td'))
+
+                if type(top[0].contents[0]) == NavigableString:
+                    LOG.warn("Preview lines out of sync -- resyncing")
+                    line += 1
+                    continue
+
                 for column in range(0, 8):  # Always 8 cells
                     link = name = code = None
 
@@ -282,33 +303,43 @@ class WbcMetadata(object):
                     mid_column = mid[column]
 
                     if type(top_column.contents[0]) == NavigableString:
-                        continue  # No link, no useful data
+                        continue  # No more useful data on this row
+
                     link = top_column.a['href']
 
-                    if link.endswith('wsm.html'):
+                    if link.endswith('ctn.html'):
                         pass
 
-                    if type(mid_column.contents[0]) == NavigableString:
-                        name = normalize(unicode(mid_column.contents[0])).strip()
+                    mcc = mid_column.contents
+                    if len(mcc) == 5:
+                        if type(mcc[4]) == NavigableString:
+                            name = nu_strip(mcc[0]) + ' ' + nu_strip(mcc[2])
+                            code = nu_strip(mcc[4])
+                        else:
+                            name = nu_strip(mcc[0])
+                            code = nu_strip(mcc[2])
+                    elif type(mcc[0]) == NavigableString:
+                        name = nu_strip(mcc[0])
                         if name in self.SPECIAL_PREVIEWS:
-                            continue  # Not a single event schedule
+                            LOG.info
+                            continue  # FIXME: Grab URL for later use
 
-                        m = re.match("(.*) \((...)\)", name)
+                        m = re.match("(.*)-\s*(\w\w\w)", name)
                         if m:
                             name = normalize(unicode(m.group(1)))
                             code = normalize(unicode(m.group(2)))
                         else:
-                            code = normalize(unicode(mid_column.contents[2])).strip()
+                            code = nu_strip(mcc[2])
                     else:
                         if mid_column.p:
-                            name = normalize(unicode(mid_column.p.contents[0])).strip()
+                            name = nu_strip(mid_column.p.contents[0])
                             if name in self.SPECIAL_PREVIEWS:
                                 continue  # Not a single event schedule
-                            code = normalize(unicode(mid_column.p.contents[2])).strip()
+                            code = nu_strip(mid_column.p.contents[2])
                         elif mid_column.span:
-                            name = normalize(unicode(mid_column.span.contents[0])).strip()
+                            name = nu_strip(mid_column.span.contents[0])
                             if len(mid_column.span.contents) == 3:
-                                code = normalize(unicode(mid_column.span.contents[2])).strip()
+                                code = nu_strip(mid_column.span.contents[2])
                             elif name in self.SPECIAL_PREVIEWS:
                                 continue  # Not a single event schedule
                             else:
@@ -332,14 +363,24 @@ class WbcMetadata(object):
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 LOG.warn("On line %d, skipping preview row %d, column %d: %s" % (
-                exc_tb.tb_lineno, line / 3, column, e.message))
+                    exc_tb.tb_lineno, line / 3, column, e.message))
                 pass
+
+            line += 3  # Lines should be in groups of 3
 
         LOG.warn("Found %d events in preview", len(self.url))
 
     def check_date(self, event_date):
         """Check to see if this event date is the earliest event date seen so far"""
+        if not event_date:
+            pass
+
         if not self.first_day:
             self.first_day = event_date
         elif event_date < self.first_day:
             self.first_day = event_date
+
+        if not self.last_day:
+            self.last_day = event_date
+        elif event_date > self.last_day:
+            self.last_day = event_date
