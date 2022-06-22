@@ -307,8 +307,8 @@ class WbcMetadata(object):
 
                     link = top_column.a['href']
 
-                    if link.endswith('ctn.html'):
-                        pass
+                    # if link.endswith('ctn.html'):
+                    #     pass
 
                     mcc = mid_column.contents
                     if len(mcc) == 5:
@@ -358,7 +358,10 @@ class WbcMetadata(object):
                     else:
                         code = code.upper()
 
-                    self.url[code] = self.SITE_URL + link
+                    if link.startswith('http'):
+                        self.url[code] = link
+                    else:
+                        self.url[code] = self.SITE_URL + link
 
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()

@@ -30,6 +30,7 @@ if __name__ == '__main__':
 
 LOG = logging.getLogger('WbcNewSpreadsheet')
 
+MIDNIGHT = time(0, 0, 0)
 
 class WbcNewRow(WbcRow):
     """
@@ -55,17 +56,19 @@ class WbcNewRow(WbcRow):
         datemode = args[2]
 
         for i in range(len(labels)):
-            key = self.keymap[labels[i]]
-            try:
-                val = parse_value(row[i])
-                self.__setattr__(key, val)
-            except ValueError as e:
-                raise ValueError(e.message + ' for ' + labels[i])
+            label = labels[i]
+            if self.keymap.has_key(label):
+                key = self.keymap[label]
+                try:
+                    val = parse_value(row[i])
+                    self.__setattr__(key, val)
+                except ValueError as e:
+                    raise ValueError(e.message + ' for ' + labels[i])
 
         self.event = self.name
 
     def initialize(self):
-        if self.line in [31]:
+        if self.line in [25]:
             pass
 
         # Excel library 'helps' us by treating numeric strings as numbers, not text
@@ -117,6 +120,16 @@ class WbcNewRow(WbcRow):
             self.length = timedelta(minutes=0)
 
         self.date = self.datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+        offset = (self.date - self.meta.first_day).days
+
+        if self.day != self.meta.day_names[offset] and self.time != MIDNIGHT:
+            LOG.error("Mismatched day name (%s) on %s", self.day, self)
+
+        if self.daycode != self.meta.day_codes[offset] and self.time != MIDNIGHT:
+            LOG.error("Mismatched day code (%s) on %s", self.daycode, self)
+
+        if self.line in [220, 479, 494, 502, 741, 1084, 1103]:
+            pass
 
 
 class WbcNewSchedule(WbcSchedule):
@@ -124,6 +137,8 @@ class WbcNewSchedule(WbcSchedule):
     Starting in 2018, the schedule format was revised so that for each event,
     there was one line for each scheduled session.
     """
+
+    TAB = 'by Game'     # 'Chronological Website'   #
 
     SPECIALS = {
         'Auction': 'Auction Store',
@@ -152,7 +167,7 @@ class WbcNewSchedule(WbcSchedule):
         LOG.debug('Reading new-format Excel spreadsheet from %s', self.filename)
 
         book = xlrd.open_workbook(self.filename)
-        sheet = book.sheet_by_name('by Game')
+        sheet = book.sheet_by_name(self.TAB)
 
         # Locate header row (first column named 'Date')
         header_row = 0
@@ -193,7 +208,7 @@ class WbcNewSchedule(WbcSchedule):
                 if not code:
                     pass
                 elif self.events.has_key(code):
-                    self.events[code].append( event_row )
+                    self.events[code].append(event_row)
                 else:
                     self.events[code] = [event_row]
 

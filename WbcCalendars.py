@@ -32,11 +32,7 @@ from datetime import date
 from bs4 import BeautifulSoup
 from icalendar import Calendar, Event
 
-from WbcUtility import round_up_datetime, globalize, as_local
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger('requests').setLevel(logging.WARN)
+from WbcUtility import as_local, globalize, round_up_datetime
 
 LOG = logging.getLogger('WbcCalendars')
 
@@ -561,3 +557,8 @@ class WbcWebcal(object):
             name = name.replace(' ', '_')
             name = name.replace('/', '_')
         return "%s.ics" % name
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger('requests').setLevel(logging.WARN)
+

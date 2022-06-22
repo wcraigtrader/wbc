@@ -183,7 +183,7 @@ class Token(object):
         cls.add_room('Exhibit Annex T8', 'Exhibit Annex Table 8', 'Exhibit annex Table 8')
         cls.add_room('Exhibit Annex T9', 'Exhibit Annex Table 9', 'Exhibit annex Table 9')
         cls.add_room('Exhibit Hall')
-        cls.add_room('Festival Hall', 'Festival')
+        cls.add_room('Winterberry', 'Festival Hall', 'Festival')
         cls.add_room('First Tracks Center', 'Ski Lodge First Tracks Center')
         cls.add_room('First Tracks Poolside', 'Ski Lodge First Tracks Poolside')
         cls.add_room('First Tracks Slopeside', 'Ski Lodge First Tracks Slopeside')
@@ -900,7 +900,7 @@ class WbcPreview(object):
         LOG.debug("Assuming first day is %s", self.meta.first_day)
 
         for code, url in sorted( self.meta.url.items() ):
-            LOG.debug("Loading event preview for %s: %s", code, url)
+            LOG.debug("Loading event preview for [%s]: %s", code, url)
             if len(self.tracking) and code not in self.tracking:
                 continue
 

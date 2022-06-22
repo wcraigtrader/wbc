@@ -115,7 +115,11 @@ class WbcRow(object):
             raise AttributeError(key)
 
     def __repr__(self):
-        return "%s @ %s %s on %s" % (self.event, self.date, self.time, self.line)
+        if isinstance(self.date, datetime):
+            return "%s @ %s %s on %s" % (self.event, self.date.date(), self.time, self.line)
+        else:
+            return "%s @ %s %s on %s" % (self.event, self.date, self.time, self.line)
+
 
     @property
     def row(self):
