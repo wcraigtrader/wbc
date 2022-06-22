@@ -2,16 +2,17 @@
 
 SITE=http://boardgamers.org/downloads/
 SCHEDULE=schedule
-YEAR=2017
+YEAR=2022
 EXT=.xlsx
 REMOTE=trader.name:/data/web/trader/wbc
 # REMOTE=wbc.trader.name:/var/www/wbc/schedule
 
-SPREADSHEET="2018 App Schedule v1.3.1.xlsx"
+# SPREADSHEET="2019 WBC Schedule - App v1.4.xlsx"
+SPREADSHEET="$(SCHEDULE)$(YEAR)$(EXT)"
 OLD_SPREADSHEET=$(SCHEDULE)$(YEAR).old
 NEW_SPREADSHEET=$(SCHEDULE)$(YEAR).new
 
-BUILD=site
+BUILD=build
 CACHE=cache
 
 all:	build
@@ -22,7 +23,7 @@ build:
 	python WBC.py -t new -i $(SPREADSHEET) -o $(BUILD)
 
 dryrun:
-	python WBC.py -t new -i $(SPREADSHEET) -o $(BUILD) -n
+	python WBC.py -d -t new -i $(SPREADSHEET) -o $(BUILD) -n
 
 pull:
 	rm -rf live
