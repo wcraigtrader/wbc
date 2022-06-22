@@ -1,4 +1,4 @@
-# ----- Copyright (c) 2010-2018 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2022 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -32,6 +32,7 @@ LOG = logging.getLogger('WbcNewSpreadsheet')
 
 MIDNIGHT = time(0, 0, 0)
 
+
 class WbcNewRow(WbcRow):
     """
     New format spreadsheet:
@@ -44,7 +45,7 @@ class WbcNewRow(WbcRow):
               'Duration', 'Location', 'GM', 'Category']
 
     def __init__(self, *args):
-        self.keymap = OrderedDict(zip(self.KEYS, self.FIELDS))
+        self.keymap = OrderedDict(list(zip(self.KEYS, self.FIELDS)))
         self.FIELDS.append('Continuous')
         WbcRow.__init__(self, *args)
 
@@ -57,7 +58,7 @@ class WbcNewRow(WbcRow):
 
         for i in range(len(labels)):
             label = labels[i]
-            if self.keymap.has_key(label):
+            if label in self.keymap:
                 key = self.keymap[label]
                 try:
                     val = parse_value(row[i])
@@ -96,10 +97,10 @@ class WbcNewRow(WbcRow):
         # Clean up dates and times, because people still refuse to use date and time fields in Excel
         if isinstance(self.date, datetime):
             self.datetime = self.date
-        if isinstance(self.date, basestring):
+        if isinstance(self.date, str):
             self.datetime = text_to_datetime(self.date)
 
-        if isinstance(self.time, basestring) or isinstance(self.time, float):
+        if isinstance(self.time, str) or isinstance(self.time, float):
             t = float(self.time) * 60
             h = int(t / 60)
             m = int(t % 60)
@@ -162,7 +163,7 @@ class WbcNewSchedule(WbcSchedule):
         for code, name in self.SPECIALS.items():
             self.meta.names[code] = name
             self.meta.codes[name] = code
-            self.meta.special = self.SPECIALS.keys()
+            self.meta.special = list(self.SPECIALS.keys())
 
         LOG.debug('Reading new-format Excel spreadsheet from %s', self.filename)
 
@@ -207,7 +208,7 @@ class WbcNewSchedule(WbcSchedule):
                 code = event_row.code
                 if not code:
                     pass
-                elif self.events.has_key(code):
+                elif code in self.events:
                     self.events[code].append(event_row)
                 else:
                     self.events[code] = [event_row]

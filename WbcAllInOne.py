@@ -1,4 +1,4 @@
-#----- Copyright (c) 2010-2018 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2022 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -19,11 +19,16 @@ import logging
 from WbcUtility import parse_url, localize
 
 
-LOGGER = logging.getLogger( 'WbcAllInOne' )
+LOGGER = logging.getLogger('WbcAllInOne')
 
-#----- WBC All-in-One Schedule -----------------------------------------------
 
-class WbcAllInOne( object ):
+def cmp(a, b):
+    return int(a > b) - int(a < b)
+
+# ----- WBC All-in-One Schedule -----------------------------------------------
+
+
+class WbcAllInOne(object):
     """
     This class is used to parse the published All-in-One Schedule, and produce
     a list of tourney events that can be used to compare against the calendars
@@ -78,7 +83,7 @@ class WbcAllInOne( object ):
 
     # Events that are miscoded (bad code : actual code)
     # codemap = { 'MMA': 'MRA', }
-    codemap = { 'T_G': 'T-G' }
+    codemap = {'T_G': 'T-G'}
     roommap = {
         'Festival': 'Festival Hall',
         'Ballroom B': 'Ballroom',
@@ -95,75 +100,75 @@ class WbcAllInOne( object ):
         'LID': 'All-in-One does not handle 30 minute rounds',
     }
 
-    class Event( object ):
+    class Event(object):
         """Simple data object to collect information about an event occuring at a specific time."""
 
-        def __init__( self ):
+        def __init__(self):
             self.code = None
             self.name = None
             self.type = None
             self.time = None
             self.location = None
 
-        def __cmp__( self, other ):
-            return cmp( self.time, other.time )
+        def __cmp__(self, other):
+            return cmp(self.time, other.time)
 
-        def __str__( self ):
-            return '%s %s %s in %s at %s' % ( self.code, self.name, self.type, self.location, self.time )
+        def __str__(self):
+            return '%s %s %s in %s at %s' % (self.code, self.name, self.type, self.location, self.time)
 
-    def __init__( self, metadata ):
+    def __init__(self, metadata):
         self.meta = metadata
         self.page = None
 
         self.load_table()
 
-    def load_table( self ):
+    def load_table(self):
         """Parse the All-in-One schedule (HTML)"""
 
-        LOGGER.info( 'Parsing WBC All-in-One schedule' )
+        LOGGER.info('Parsing WBC All-in-One schedule')
 
-        self.page = parse_url( self.SITE_URL % ( self.meta.year % 100 ) )
+        self.page = parse_url(self.SITE_URL % (self.meta.year % 100))
         if not self.page:
             return
 
         try:
-            title = self.page.findAll( 'title' )[0]
-            year = str( title.text )
+            title = self.page.findAll('title')[0]
+            year = str(title.text)
             year = year.strip().split()
-            year = int( year[0] )
+            year = int(year[0])
         except:
             # Fetch from page body instead of page title.
             # html.body.table.tr.td.p.font.b.font.NavigableString
             try:
                 td = self.page.html.body.table.tr.td
                 text = td.h1.b.text
-                year = str( text ).strip().split()
-                year = int( year[0] )
+                year = str(text).strip().split()
+                year = int(year[0])
             except:
                 year = 2013
 
         if year != self.meta.this_year and year != self.meta.year:
-            LOGGER.error( "All-in-one schedule for %d is out of date", year )
+            LOGGER.error("All-in-one schedule for %d is out of date", year)
 
             return
 
-        tables = self.page.findAll( 'table' )
-        rows = tables[1].findAll( 'tr' )
+        tables = self.page.findAll('table')
+        rows = tables[1].findAll('tr')
         for row in rows[1:]:
-            self.load_row( row )
+            self.load_row(row)
 
         self.valid = True
 
-    def load_row( self, row ):
+    def load_row(self, row):
         """Parse an individual all-in-one row to find times and rooms for an event"""
 
         events = []
 
-        cells = row.findAll( 'td' )
-        code = str( cells[0].font.text ).strip( ';' )
-        name = str( cells[1].font.text ).strip( ';* ' )
+        cells = row.findAll('td')
+        code = str(cells[0].font.text).strip(';')
+        name = str(cells[1].font.text).strip(';* ')
 
-        code = self.codemap[ code ] if self.codemap.has_key( code ) else code
+        code = self.codemap[code] if code in self.codemap else code
 
         current_date = self.meta.first_day
 
@@ -172,14 +177,14 @@ class WbcAllInOne( object ):
             current = {}
 
             # All entries belong to font tags
-            for f in cell.findAll( 'font' ):
+            for f in cell.findAll('font'):
                 for key, val in f.attrs.items():
                     if key == 'color':
                         # Fonts with color attributes represent start/type data for a single event
                         e = WbcAllInOne.Event()
                         e.code = code
                         e.name = name
-                        hour = int( f.text.strip() )
+                        hour = int(f.text.strip())
                         day = current_date.day
                         month = current_date.month
                         if hour >= 24:
@@ -188,25 +193,25 @@ class WbcAllInOne( object ):
                         if day >= 32:  # This works because WBC always starts in either the end of July or beginning of August
                             day -= 31
                             month += 1
-                        e.time = localize( current_date.replace( month=month, day=day, hour=hour ) )
-                        e.type = self.colormap.get( val, None )
+                        e.time = localize(current_date.replace(month=month, day=day, hour=hour))
+                        e.type = self.colormap.get(val, None)
                         current[hour] = e
 
                     elif key == 'size':
                         # Fonts with size=-1 represent entry data for all events
-                        text = str( f.text ).strip().split( '; ' )
+                        text = str(f.text).strip().split('; ')
 
-                        if len( text ) == 1:
+                        if len(text) == 1:
                             # If there's only one entry, it applies to all events
                             entry = text[0]
-                            entry = self.roommap[ entry ] if self.roommap.has_key( entry ) else entry
+                            entry = self.roommap[entry] if entry in self.roommap else entry
                             for e in current.values():
                                 e.location = entry
                         else:
                             # For each entry ...
                             for chunk in text:
-                                times, dummy, entry = chunk.partition( ':' )
-                                entry = self.roommap[ entry ] if self.roommap.has_key( entry ) else entry
+                                times, dummy, entry = chunk.partition(':')
+                                entry = self.roommap[entry] if entry in self.roommap else entry
                                 if times == 'others':
                                     # Apply this location to all entries without locations
                                     for e in current.values():
@@ -214,16 +219,15 @@ class WbcAllInOne( object ):
                                             e.location = entry
                                 else:
                                     # Apply this location to each listed hour
-                                    for hour in times.split( ',' ):
-                                        current[int( hour )].location = entry
+                                    for hour in times.split(','):
+                                        current[int(hour)].location = entry
 
             # Add all of this days events to the list
-            events = events + current.values()
+            events = events + list(current.values())
 
             # Move to the next date
-            current_date = current_date + timedelta( days=1 )
+            current_date = current_date + timedelta(days=1)
 
         # Sort the list, then add it to the events map
         events.sort()
         self.events[code] = events
-

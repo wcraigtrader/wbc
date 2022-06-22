@@ -1,4 +1,4 @@
-# ----- Copyright (c) 2010-2018 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2022 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -123,7 +123,7 @@ class Token(object):
         cls.SLASH = Token('Symbol', '/')
         cls.START = Token('Symbol', '|')
 
-        cls.PATTERN = '|'.join(sorted(cls.LOOKUP.keys(), reverse=True))
+        cls.PATTERN = '|'.join(sorted(list(cls.LOOKUP.keys()), reverse=True))
 
         cls.LOOKUP['&'] = cls.AND
         cls.LOOKUP['@'] = cls.AT
@@ -317,21 +317,21 @@ class Token(object):
 
     @staticmethod
     def encode_list(tokenlist):
-        return [u' '.join([unicode(y) for y in x]) for x in tokenlist]
+        return [' '.join([str(y) for y in x]) for x in tokenlist]
 
     @classmethod
     def tokenize(cls, tag):
         tokens = []
-        partial = u''
+        partial = ''
 
         for tag in tag.descendants:
             if isinstance(tag, Comment):
                 pass  # Always ignore comments
             elif isinstance(tag, NavigableString):
-                partial += u' ' + unicode(tag)
+                partial += ' ' + str(tag)
             elif isinstance(tag, Tag) and tag.name in ['img']:
                 tokens += cls.tokenize_text(partial)
-                partial = u''
+                partial = ''
                 tokens += cls.tokenize_icon(tag)
             else:
                 pass  # ignore other tags, for now
@@ -383,17 +383,17 @@ class Token(object):
 
         data = text
 
-        junk = u''
+        junk = ''
         tokens = []
 
         # Cleanup crappy data
-        data = data.replace(u'\xa0', u' ')
-        data = data.replace(u'\n', u' ')
+        data = data.replace('\xa0', ' ')
+        data = data.replace('\n', ' ')
 
         data = data.strip()
-        data = data.replace(u' ' * 11, u' ').replace(u' ' * 7, u' ').replace(u' ' * 5, u' ')
-        data = data.replace(u' ' * 3, u' ').replace(u' ' * 2, u' ')
-        data = data.replace(u' ' * 2, u' ').replace(u' ' * 2, u' ')
+        data = data.replace(' ' * 11, ' ').replace(' ' * 7, ' ').replace(' ' * 5, ' ')
+        data = data.replace(' ' * 3, ' ').replace(' ' * 2, ' ')
+        data = data.replace(' ' * 2, ' ').replace(' ' * 2, ' ')
         data = data.strip()
 
         hdata = data.encode('unicode_escape')
@@ -401,7 +401,7 @@ class Token(object):
         while len(data):
 
             # Ignore commas and semi-colons
-            if data[0] in u',;:':
+            if data[0] in ',;:':
                 data = data[1:]
             else:
                 # Match Room names, event names, phrases, symbols
@@ -478,7 +478,7 @@ class Parser(object):
                 return False
         return True
 
-    def next(self):
+    def __next__(self):
         return self.tokens.pop(0)
 
     def match_3_events(self):
@@ -486,11 +486,11 @@ class Parser(object):
         Match 'Event', Token.SLASH, 'Event', Token.SLASH, 'Event'
         Stop [ 'Day' ]
         """
-        e1 = self.next()
-        self.next()
-        e2 = self.next()
-        self.next()
-        e3 = self.next()
+        e1 = next(self)
+        next(self)
+        e2 = next(self)
+        next(self)
+        e3 = next(self)
         return [(e1.label,), (e2.label,), (e3.label,)]
 
     def match_2_events(self):
@@ -498,9 +498,9 @@ class Parser(object):
         Match 'Event', Token.SLASH, 'Event'
         Stop [ 'Day' ]
         """
-        e1 = self.next()
-        self.next()
-        e2 = self.next()
+        e1 = next(self)
+        next(self)
+        e2 = next(self)
         return [(e1.label,), (e2.label,)]
 
     def match_event(self):
@@ -508,7 +508,7 @@ class Parser(object):
         Match 'Event'
         Stop [ 'Day' ]
         """
-        e1 = self.next()
+        e1 = next(self)
         return (e1.label,)
 
     def match_qualified_event(self):
@@ -516,8 +516,8 @@ class Parser(object):
         Match 'Qualifier' 'Event'
         Stop [ 'Day' ]
         """
-        q = self.next()
-        e = self.next()
+        q = next(self)
+        e = next(self)
         return e.label, q.label
 
     def match_multiple_heats(self):
@@ -525,10 +525,10 @@ class Parser(object):
         Match 'Event', 'Number', Token.DASH, 'Number'
         Stop [ 'Day' ]
         """
-        e1 = self.next()
-        first = self.next()
-        self.next()
-        last = self.next()
+        e1 = next(self)
+        first = next(self)
+        next(self)
+        last = next(self)
 
         results = []
         for n in range(first.value, last.value + 1):
@@ -542,10 +542,10 @@ class Parser(object):
         Match 'Event', 'Number'
         Stop [ 'Day' ]
         """
-        e1 = self.next()
-        n = self.next()
+        e1 = next(self)
+        n = next(self)
         if self.has('Qualifier'):
-            q = self.next()
+            q = next(self)
             return e1.label, n.value, q.label
 
         return e1.label, n.value
@@ -555,16 +555,16 @@ class Parser(object):
         Match 'Event', 'Number', Token.SLASH, 'Number'
         Stop [ 'Day' ]
         """
-        e1 = self.next()
-        n = self.next()
-        self.next()
-        m = self.next()
+        e1 = next(self)
+        n = next(self)
+        next(self)
+        m = next(self)
 
         return e1.label, n.value, m.value
 
     def match_date_times(self):
         """Recognized date/time formats:
-    
+
         <day> <time> @
         <day> @ <time>
         <day> @ <time> - <time>
@@ -572,44 +572,44 @@ class Parser(object):
         <day> <time> <time> <time> & <time> @
         <day> <time> & <day> <time> & <time> & <day> <time> & <day> <time> @
         <day> @ <time> <time> <time> <time>
-    
+
         Ignores [ &, @ ]
         Stops on [ -?,  <room> ]
-    
+
         Returns a list of ( Day, Time ) tuples
         """
 
         results = []
         while self.has('Day'):
-            day = self.next()
+            day = next(self)
             while self.is_not(Token.DASH, 'Room', 'Day'):
                 if self.has('Number', Token.DASH, 'Number'):
-                    time = self.next()
-                    self.next()
-                    self.next()
+                    time = next(self)
+                    next(self)
+                    next(self)
                     results.append(timedelta(days=day.value, hours=time.value))
                 if self.has('Number'):
                     offset = 0
-                    time = self.next()
+                    time = next(self)
                     if self.has(Token.AM):
-                        self.next()
+                        next(self)
                     elif self.has(Token.PM):
-                        self.next()
+                        next(self)
                         offset = 12
                     elif self.has(Token.PLUS):
-                        self.next()  # FIXME: Do something with + => continuous???
+                        next(self)  # FIXME: Do something with + => continuous???
                     results.append(timedelta(days=day.value, hours=time.value + offset))
                 elif self.has(Token.AND) or self.has(Token.AT):
-                    self.next()
+                    next(self)
 
         return results
 
     def match_room(self):
         if self.count and self.tokens[0] == Token.DASH:
-            self.next()
+            next(self)
 
         if self.count and self.tokens[0].type == 'Room':
-            return self.next()
+            return next(self)
 
         return None
 
@@ -833,7 +833,6 @@ class WbcPreview(object):
                     else:
                         self.add_event(ename, times[0], room)
 
-
                 elif p.has('Event', 'Day'):
                     event = p.match_event()
                     times = p.match_date_times()
@@ -899,7 +898,7 @@ class WbcPreview(object):
         LOG.info("Loading event previews...")
         LOG.debug("Assuming first day is %s", self.meta.first_day)
 
-        for code, url in sorted( self.meta.url.items() ):
+        for code, url in sorted(self.meta.url.items()):
             LOG.debug("Loading event preview for [%s]: %s", code, url)
             if len(self.tracking) and code not in self.tracking:
                 continue

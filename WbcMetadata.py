@@ -1,4 +1,4 @@
-# ----- Copyright (c) 2010-2018 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2022 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -54,14 +54,18 @@ class WbcMetaEvent(object):
     def as_json(self):
         j = OrderedDict()
         j['name'] = self.name
-        if self.duration: j['duration'] = self.duration
-        if self.grognard: j['grognard'] = self.grognard
-        if self.playlate: j['playlate'] = self.playlate
+        if self.duration:
+            j['duration'] = self.duration
+        if self.grognard:
+            j['grognard'] = self.grognard
+        if self.playlate:
+            j['playlate'] = self.playlate
         altnames = set(self.altnames)
         altnames = altnames - set(self.name)
         altnames = list(altnames)
         altnames.sort()
-        if len(altnames): j['altnames'] = altnames
+        if len(altnames):
+            j['altnames'] = altnames
         return j
 
     @classmethod
@@ -98,10 +102,10 @@ class WbcMetaEvent(object):
             for code in sorted(data.keys()):
                 row = data[code]
                 entry = WbcMetaEvent(code, row['name'])
-                entry.duration = row['duration'] if row.has_key('duration') else None
-                entry.grognard = row['grognard'] if row.has_key('grognard') else None
-                entry.playlate = row['playlate'] if row.has_key('playlate') else None
-                entry.altnames = row['altnames'] if row.has_key('altnames') else []
+                entry.duration = row['duration'] if 'duration' in row else None
+                entry.grognard = row['grognard'] if 'grognard' in row else None
+                entry.playlate = row['playlate'] if 'playlate' in row else None
+                entry.altnames = row['altnames'] if 'altnames' in row else []
                 entries[code] = entry
 
         return entries
@@ -326,8 +330,8 @@ class WbcMetadata(object):
 
                         m = re.match("(.*)-\s*(\w\w\w)", name)
                         if m:
-                            name = normalize(unicode(m.group(1)))
-                            code = normalize(unicode(m.group(2)))
+                            name = normalize(str(m.group(1)))
+                            code = normalize(str(m.group(2)))
                         else:
                             code = nu_strip(mcc[2])
                     else:

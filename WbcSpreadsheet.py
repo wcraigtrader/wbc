@@ -1,4 +1,4 @@
-# ----- Copyright (c) 2010-2018 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2022 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -119,7 +119,6 @@ class WbcRow(object):
             return "%s @ %s %s on %s" % (self.event, self.date.date(), self.time, self.line)
         else:
             return "%s @ %s %s on %s" % (self.event, self.date, self.time, self.line)
-
 
     @property
     def row(self):

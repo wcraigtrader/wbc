@@ -1,4 +1,4 @@
-# ----- Copyright (c) 2010-2018 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2022 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -41,7 +41,7 @@ class WbcOldRow(WbcRow):
     GENERATED = ['Code']
 
     def __init__(self, *args):
-        self.keymap = OrderedDict(zip(self.KEYS, self.FIELDS))
+        self.keymap = OrderedDict(list(zip(self.KEYS, self.FIELDS)))
         WbcRow.__init__(self, *args)
 
     def readrow(self, *args):
@@ -377,7 +377,7 @@ class WbcOldSchedule(WbcSchedule):
         name = entry.name + ' ' + entry.type
         name = name.strip()
 
-        rounds = range(int(entry.start), int(entry.rounds) + 1)
+        rounds = list(range(int(entry.start), int(entry.rounds) + 1))
         for r in rounds:
             label = "%s R%s/%s" % (name, r, entry.rounds)
             self.add_event(calendar, entry, start=start, name=label)
@@ -511,4 +511,3 @@ class WbcOldSchedule(WbcSchedule):
             offset = (len(self.SINGLE) - self.SINGLE.index(event_type)) - 1
             alternative = "%s R%s/%s" % (entry.name, r - offset, r)
         return alternative
-

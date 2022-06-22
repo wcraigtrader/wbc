@@ -1,4 +1,4 @@
-# ----- Copyright (c) 2010-2018 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2022 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -31,7 +31,7 @@ def normalize(utext):
 
 
 def nu_strip(string):
-    return normalize(unicode(string)).strip()
+    return normalize(str(string)).strip()
 
 
 # ----- Spreadsheet Functions -------------------------------------------------
@@ -112,7 +112,7 @@ def cal_time(timestamp):
 def text_to_date(text):
     value = None
     try:
-        if isinstance(value, basestring):
+        if isinstance(value, str):
             value = datetime.strptime(text, '%m/%d/%y')
         if isinstance(value, datetime):
             value = value.date()
@@ -128,7 +128,7 @@ def text_to_datetime(text):
     try:
         if isinstance(text, datetime):
             value = text
-        elif isinstance(text, basestring):
+        elif isinstance(text, str):
             value = datetime.strptime(text, '%m/%d/%y')
     except ValueError as e:
         pass  # Not a date, that's OK

@@ -1,6 +1,6 @@
-#! /usr/bin/env python2.7
+#! /usr/bin/env python3
 
-# ----- Copyright (c) 2010-2018 by W. Craig Trader ---------------------------------
+# ----- Copyright (c) 2010-2022 by W. Craig Trader ---------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
@@ -26,7 +26,9 @@ import json
 import logging
 import os
 import shutil
-import urllib
+import urllib.request
+import urllib.parse
+import urllib.error
 from datetime import date
 
 from bs4 import BeautifulSoup
@@ -86,7 +88,7 @@ class WbcWebcal(object):
             if entry.continuous:
                 description += ' Continuous'
             if url:
-                description += '\nPreview: ' + urllib.quote(url, ':/')
+                description += '\nPreview: ' + urllib.parse.quote(url, ':/')
 
             e = Event()
             e.add('SUMMARY', name)
@@ -341,7 +343,7 @@ class WbcWebcal(object):
 
         # Tournament event calendars
         tourneys = dict([(k, v) for k, v in self.calendars.items() if k not in self.meta.special])
-        ordering = lambda x, y: cmp(tourneys[x]['summary'], tourneys[y]['summary'])
+        def ordering(x, y): return cmp(tourneys[x]['summary'], tourneys[y]['summary'])
         self.render_calendar_table(parser, 'tournaments', 'Tournament Events', tourneys, ordering)
 
         # Non-tourney event calendars
@@ -368,7 +370,7 @@ class WbcWebcal(object):
     def render_calendar_table(cls, parser, id_name, label, calendar_map, comparison=None):
         """Create the HTML fragment for the table of tournament calendars."""
 
-        keys = calendar_map.keys()
+        keys = list(calendar_map.keys())
         keys.sort(comparison)
 
         div = parser.find('div', {'id': id_name})
@@ -446,7 +448,7 @@ class WbcWebcal(object):
     def render_calendar_list(cls, parser, id_name, label, calendar_map, comparison=None):
         """Create the HTML fragment for an unordered list of calendars."""
 
-        keys = calendar_map.keys()
+        keys = list(calendar_map.keys())
         keys.sort(comparison)
 
         div = parser.find('div', {'id': id_name})
@@ -530,9 +532,9 @@ class WbcWebcal(object):
         """
         same = str(e1['dtstart']) == str(e2['dtstart'])
         same &= str(e1['duration']) == str(e2['duration'])
-        same |= unicode(e1['summary']) == unicode(e2['summary'])
+        same |= str(e1['summary']) == str(e2['summary'])
         if altname:
-            same |= unicode(e1['summary']) == unicode(altname)
+            same |= str(e1['summary']) == str(altname)
         return same
 
     @staticmethod
@@ -558,7 +560,7 @@ class WbcWebcal(object):
             name = name.replace('/', '_')
         return "%s.ics" % name
 
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     logging.getLogger('requests').setLevel(logging.WARN)
-
