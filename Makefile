@@ -2,13 +2,14 @@
 
 SITE=http://boardgamers.org/downloads/
 SCHEDULE=schedule
-YEAR=2022
+YEAR=2023
 EXT=.xlsx
 REMOTE=trader.name:/data/web/trader/wbc
 # REMOTE=wbc.trader.name:/var/www/wbc/schedule
 
-# SPREADSHEET="2019 WBC Schedule - App v1.4.xlsx"
-SPREADSHEET="$(SCHEDULE)$(YEAR)$(EXT)"
+SPREADSHEET="2023 WBC Schedule - App vFinal.xlsx"
+# SPREADSHEET="2022 WBC Schedule - App v2.0 Final.xlsx"
+# SPREADSHEET="$(SCHEDULE)$(YEAR)$(EXT)"
 OLD_SPREADSHEET=$(SCHEDULE)$(YEAR).old
 NEW_SPREADSHEET=$(SCHEDULE)$(YEAR).new
 
@@ -58,6 +59,14 @@ fetch:
 	fi
 
 prerequisites:
+	conda install -y \
+		beautifulsoup4 \
+		openpyxl \
+		lxml \
+		requests_cache \
+		icalendar
+
+pip-prerequisites:
 	sudo -H pip install --upgrade icalendar
 	sudo -H pip install --upgrade beautifulsoup4
 	sudo -H pip install --upgrade xlrd

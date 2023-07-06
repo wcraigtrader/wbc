@@ -16,14 +16,11 @@
 from datetime import timedelta
 import logging
 
-from WbcUtility import parse_url, localize
+from WbcUtility import parse_url, localize, cmp
 
 
 LOGGER = logging.getLogger('WbcAllInOne')
 
-
-def cmp(a, b):
-    return int(a > b) - int(a < b)
 
 # ----- WBC All-in-One Schedule -----------------------------------------------
 

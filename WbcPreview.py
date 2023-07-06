@@ -82,7 +82,7 @@ class Token(object):
         cls.add_event('H', 'Heat')
         cls.add_event('R', 'Round', 'ound')
         cls.add_event('QF', 'Quarterfinal', 'Quarterfinals')
-        cls.add_event('SF', 'Semifinal', 'Semifinals')
+        cls.add_event('SF', 'Semifinal', 'Semifinals', 'S')
         cls.add_event('F', 'Final', 'Finals')
         cls.add_event('Junior')
         cls.add_event('Mulligan', 'mulligan', 'Mulligan Round')
@@ -661,6 +661,14 @@ class WbcPreview(object):
             self.rounds = set()
             self.max = 0
 
+            self.parse_schedule(code, page)
+
+        def parse_schedule(self, code, page):
+
+            # for table in page.findAll('table'):
+            #     rows = list(table.findAll('tr'))
+            #     if rows[0].td
+
             td = page.table.table.table.findAll('tr')[2].td
             paras = list(td.findAll('p'))
 
@@ -670,7 +678,9 @@ class WbcPreview(object):
                 self.check_consistency()
 
             else:
-                LOG.error('%s: Did not find schedule data', code)
+                LOG.error('%s: Did not find schedule data in preview', code)
+
+
 
         def tokenize_events(self, paras):
             for para in paras:
@@ -915,6 +925,7 @@ class WbcPreview(object):
                 message = 'Unable to load event preview for %s from %s' % (code, url)
                 self.notes[code].append(message)
                 LOG.error(message)
+                pass
 
         self.valid = True
 

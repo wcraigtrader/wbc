@@ -29,12 +29,19 @@ import shutil
 import urllib.request
 import urllib.parse
 import urllib.error
-from datetime import date
+import warnings
 
-from bs4 import BeautifulSoup
+from datetime import date
+from functools import cmp_to_key
+from operator import attrgetter
+
+from bs4 import BeautifulSoup, GuessedAtParserWarning
 from icalendar import Calendar, Event
 
-from WbcUtility import as_local, globalize, round_up_datetime
+from WbcUtility import as_local, cmp, globalize, round_up_datetime
+
+
+warnings.filterwarnings('ignore', category=GuessedAtParserWarning)
 
 LOG = logging.getLogger('WbcCalendars')
 
@@ -99,6 +106,8 @@ class WbcWebcal(object):
             e.add('CONTACT', entry.gm)
             e.add('URL', url)
             e.add('LAST-MODIFIED', self.meta.now)
+            e.add('DTSTAMP', self.meta.now)
+            e.add('UID', f"{self.prodid}: {name}")
             e.add('COMMENT', repr(entry.extra))
 
             if replace:
@@ -124,7 +133,7 @@ class WbcWebcal(object):
 
         # Create a sorted list of this year's tourney codes
         self.current_tourneys = [code for code in self.calendars.keys() if code in self.meta.tourneys]
-        self.current_tourneys.sort(lambda x, y: cmp(self.meta.names[x], self.meta.names[y]))
+        self.current_tourneys.sort(key=lambda k: self.meta.names[k])
 
         # Create bulk calendars
         self.everything = Calendar()
@@ -343,8 +352,7 @@ class WbcWebcal(object):
 
         # Tournament event calendars
         tourneys = dict([(k, v) for k, v in self.calendars.items() if k not in self.meta.special])
-        def ordering(x, y): return cmp(tourneys[x]['summary'], tourneys[y]['summary'])
-        self.render_calendar_table(parser, 'tournaments', 'Tournament Events', tourneys, ordering)
+        self.render_calendar_table(parser, 'tournaments', 'Tournament Events', tourneys, lambda k: tourneys[k]['summary'])
 
         # Non-tourney event calendars
         nontourneys = dict([(k, v) for k, v in self.calendars.items() if k in self.meta.special])
@@ -367,11 +375,11 @@ class WbcWebcal(object):
             f.write(parser.prettify())
 
     @classmethod
-    def render_calendar_table(cls, parser, id_name, label, calendar_map, comparison=None):
+    def render_calendar_table(cls, parser, id_name, label, calendar_map, key=None):
         """Create the HTML fragment for the table of tournament calendars."""
 
         keys = list(calendar_map.keys())
-        keys.sort(comparison)
+        keys.sort(key=key)
 
         div = parser.find('div', {'id': id_name})
         div.insert(0, parser.new_tag('h2'))
@@ -436,7 +444,7 @@ class WbcWebcal(object):
         """
 
         max_length = len(original)
-        length = (max_length + width - 1) / width
+        length = int((max_length + width - 1) / width)
         for i in range(length):
             partial = []
             for j in range(width):
@@ -445,11 +453,11 @@ class WbcWebcal(object):
             yield partial
 
     @classmethod
-    def render_calendar_list(cls, parser, id_name, label, calendar_map, comparison=None):
+    def render_calendar_list(cls, parser, id_name, label, calendar_map, key=None):
         """Create the HTML fragment for an unordered list of calendars."""
 
         keys = list(calendar_map.keys())
-        keys.sort(comparison)
+        keys.sort(key=key)
 
         div = parser.find('div', {'id': id_name})
         div.insert(0, parser.new_tag('h2'))
@@ -503,7 +511,7 @@ class WbcWebcal(object):
         """
 
         c = calendar
-        c.subcomponents.sort(cmp=cls.compare_icalendar_events)
+        c.subcomponents.sort(key=cmp_to_key(cls.compare_icalendar_events))
 
         output = c.to_ical()
         # output = output.replace( ";VALUE=DATE-TIME:", ":" )

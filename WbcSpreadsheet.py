@@ -66,6 +66,8 @@ class WbcRow(object):
         self.datetime = None
         self.gm = None
         self.location = None
+        self.prize = None
+        self.category = None
 
         self.type = ''
         self.rtype = ''
@@ -122,16 +124,19 @@ class WbcRow(object):
 
     @property
     def row(self):
-        row = dict([(k, getattr(self, k)) for k in self.FIELDS])
-        row['Date'] = self.date.strftime('%Y-%m-%d')
-        row['Continuous'] = 'Y' if row['Continuous'] else ''
-        event = self.name
-        row['Event'] = event
+        try:
+            row = dict([(k, getattr(self, k)) for k in self.FIELDS])
+            row['Date'] = self.date.strftime('%Y-%m-%d')
+            row['Continuous'] = 'Y' if row['Continuous'] else ''
+            event = self.name
+            row['Event'] = event
+        except Exception as e:
+            LOG.error("Unexpected row exception: %s", e)
         return row
 
     @property
     def extra(self):
-        extra = dict([(k, getattr(self, k)) for k in ['Code', 'Prize', 'Class', 'Format', 'Continuous']])
+        extra = dict([(k, getattr(self, k)) for k in ['Code', 'Prize', 'Class', 'Format', 'Continuous'] if hasattr(self, k)])
         return extra
 
     def readrow(self, *args):

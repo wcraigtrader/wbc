@@ -51,7 +51,7 @@ class Web(object):
 
         def hook(response, **kwargs):
             if not getattr(response, 'from_cache', False):
-                LOG.debug('Cache throttling; %g seconds' % timeout)
+                # LOG.debug('Cache throttling; %g seconds' % timeout)
                 time.sleep(timeout)
             return response
 

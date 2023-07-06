@@ -23,7 +23,7 @@ from collections import OrderedDict
 from datetime import datetime
 from optparse import OptionParser
 
-from bs4 import NavigableString
+from bs4 import NavigableString, Tag
 
 from WbcUtility import parse_url, TZ, normalize, nu_strip
 
@@ -149,14 +149,16 @@ class WbcMetadata(object):
     OTHERCODES = os.path.join("meta", "wbc-other-codes.csv")
 
     SITE_URL = "http://boardgamers.org/wbc%02d/" % yy
-    PREVIEW_INDEX_URL = SITE_URL + "previews_%d.html"
+    PREVIEW_INDEX_URL = SITE_URL + "previews-%d.html"
 
     # Bad code in event preview index -> actual event code {'gmb': 'GBM',}
     MISCODES = {
+        '8xx': '8XX',
+        'B-17': 'B17',
         'Iron Men - WSM': 'WSM',
     }
 
-    SPECIAL_PREVIEWS = ['Junior Events', 'Seminars', 'Demonstrations']
+    SPECIAL_PREVIEWS = ['Juniors', 'Junior Events', 'Seminars', 'Demos', 'Demonstrations']
 
     others = []  # List of non-tournament event matching data
     special = []  # List of non-tournament event codes
@@ -206,10 +208,8 @@ class WbcMetadata(object):
 
         parser = OptionParser()
         parser.add_option("-y", "--year", dest="year", metavar="YEAR", default=self.this_year, help="Year to process")
-        parser.add_option("-t", "--type", dest="type", metavar="TYPE", default="new",
-                          help="Type of file to process (old,new)")
-        parser.add_option("-i", "--input", dest="input", metavar="FILE", default=None,
-                          help="Schedule spreadsheet to process")
+        parser.add_option("-t", "--type", dest="type", metavar="TYPE", default="new", help="Type of file to process (old,new)")
+        parser.add_option("-i", "--input", dest="input", metavar="FILE", default=None, help="Schedule spreadsheet to process")
         parser.add_option("-o", "--output", dest="output", metavar="DIR", default="build", help="Directory for results")
         parser.add_option("-f", "--full-report", dest="fullreport", action="store_true", default=False)
         parser.add_option("-n", "--dry-run", dest="write_files", action="store_false", default=True)
@@ -311,50 +311,69 @@ class WbcMetadata(object):
 
                     link = top_column.a['href']
 
-                    # if link.endswith('ctn.html'):
-                    #     pass
+                    if link.endswith('wsm.html'):
+                        LOG.debug('debug')
+                        pass
 
                     mcc = mid_column.contents
-                    if len(mcc) == 5:
-                        if type(mcc[4]) == NavigableString:
-                            name = nu_strip(mcc[0]) + ' ' + nu_strip(mcc[2])
-                            code = nu_strip(mcc[4])
-                        else:
-                            name = nu_strip(mcc[0])
-                            code = nu_strip(mcc[2])
-                    elif type(mcc[0]) == NavigableString:
-                        name = nu_strip(mcc[0])
-                        if name in self.SPECIAL_PREVIEWS:
-                            LOG.info
-                            continue  # FIXME: Grab URL for later use
 
-                        m = re.match("(.*)-\s*(\w\w\w)", name)
-                        if m:
-                            name = normalize(str(m.group(1)))
-                            code = normalize(str(m.group(2)))
-                        else:
-                            code = nu_strip(mcc[2])
-                    else:
-                        if mid_column.p:
-                            name = nu_strip(mid_column.p.contents[0])
-                            if name in self.SPECIAL_PREVIEWS:
-                                continue  # Not a single event schedule
-                            code = nu_strip(mid_column.p.contents[2])
-                        elif mid_column.span:
-                            name = nu_strip(mid_column.span.contents[0])
-                            if len(mid_column.span.contents) == 3:
-                                code = nu_strip(mid_column.span.contents[2])
-                            elif name in self.SPECIAL_PREVIEWS:
-                                continue  # Not a single event schedule
-                            else:
-                                m = re.match("(.*) - (...)", name)
-                                if m:
-                                    name = m.group(1)
-                                    code = m.group(2)
-                                else:
-                                    raise AssertionError("Cannot parse name/code")
+                    mcc_text = [ nu_strip(e) for e in mcc if isinstance(e, NavigableString) ]
+                    mcc_text = [ e for e in mcc_text if e ]
 
-                    code = code.replace('(', '').replace(')', '')
+                    last = -1
+                    if mcc_text[last].startswith('Under Construction'):
+                        continue
+
+                    if mcc_text[last].startswith('Updated'):
+                        last = -2
+                    
+                    code = mcc_text[last]
+                    name = ' '.join(mcc_text[:last])
+
+                    if code in self.SPECIAL_PREVIEWS:
+                        continue
+
+
+                    # if len(mcc) == 5:
+                    #     if type(mcc[4]) == NavigableString:
+                    #         name = nu_strip(mcc[0]) + ' ' + nu_strip(mcc[2])
+                    #         code = nu_strip(mcc[4])
+                    #     else:
+                    #         name = nu_strip(mcc[0])
+                    #         code = nu_strip(mcc[2])
+                    # elif isinstance(mcc[0], NavigableString):
+                    #     name = nu_strip(mcc[0])
+                    #     if name in self.SPECIAL_PREVIEWS:
+                    #         LOG.info
+                    #         continue  # FIXME: Grab URL for later use
+
+                    #     m = re.match("(.*)-\s*(\w\w\w)", name)
+                    #     if m:
+                    #         name = normalize(str(m.group(1)))
+                    #         code = normalize(str(m.group(2)))
+                    #     else:
+                    #         code = nu_strip(mcc[2])
+                    # else:
+                    #     if mid_column.p:
+                    #         name = nu_strip(mid_column.p.contents[0])
+                    #         if name in self.SPECIAL_PREVIEWS:
+                    #             continue  # Not a single event schedule
+                    #         code = nu_strip(mid_column.p.contents[2])
+                    #     elif mid_column.span:
+                    #         name = nu_strip(mid_column.span.contents[0])
+                    #         if len(mid_column.span.contents) == 3:
+                    #             code = nu_strip(mid_column.span.contents[2])
+                    #         elif name in self.SPECIAL_PREVIEWS:
+                    #             continue  # Not a single event schedule
+                    #         else:
+                    #             m = re.match("(.*) - (...)", name)
+                    #             if m:
+                    #                 name = m.group(1)
+                    #                 code = m.group(2)
+                    #             else:
+                    #                 raise AssertionError("Cannot parse name/code")
+
+                    # code = code.replace('(', '').replace(')', '')
 
                     # Map page codes to event codes
                     if code in self.MISCODES:
@@ -368,9 +387,9 @@ class WbcMetadata(object):
                         self.url[code] = self.SITE_URL + link
 
             except Exception as e:
+                LOG.exception("Skipping preview row %d, column %d:", line / 3, column)
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                LOG.warn("On line %d, skipping preview row %d, column %d: %s" % (
-                    exc_tb.tb_lineno, line / 3, column, e.message))
+                LOG.warn("On line %d, skipping preview row %d, column %d: %s", exc_tb.tb_lineno, line / 3, column, getattr(e, 'message', '---'))
                 pass
 
             line += 3  # Lines should be in groups of 3

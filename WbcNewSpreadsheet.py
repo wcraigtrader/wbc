@@ -18,7 +18,7 @@ import sys
 from collections import OrderedDict
 from datetime import datetime, time, timedelta
 
-import xlrd
+import openpyxl
 
 from WbcCalendars import WbcWebcal
 from WbcSpreadsheet import WbcRow, WbcSchedule
@@ -31,6 +31,8 @@ if __name__ == '__main__':
 LOG = logging.getLogger('WbcNewSpreadsheet')
 
 MIDNIGHT = time(0, 0, 0)
+
+
 
 
 class WbcNewRow(WbcRow):
@@ -75,6 +77,9 @@ class WbcNewRow(WbcRow):
         # Excel library 'helps' us by treating numeric strings as numbers, not text
         if isinstance(self.code, float):
             self.code = str(int(self.code))
+            
+        if self.code and self.code in self.meta.MISCODES:
+            self.code = self.meta.MISCODES[self.code]
 
         # Capture metadata that used to be hand-jammed
         if self.code not in self.meta.names:
@@ -123,6 +128,9 @@ class WbcNewRow(WbcRow):
         self.date = self.datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         offset = (self.date - self.meta.first_day).days
 
+        if not hasattr(self, 'day'):
+            self.day = self.meta.day_names[offset]
+
         if self.day != self.meta.day_names[offset] and self.time != MIDNIGHT:
             LOG.error("Mismatched day name (%s) on %s", self.day, self)
 
@@ -139,15 +147,20 @@ class WbcNewSchedule(WbcSchedule):
     there was one line for each scheduled session.
     """
 
-    TAB = 'by Game'     # 'Chronological Website'   #
+    TABS = [
+        'by Game',
+        'Chronological Website',
+        'Chronlogical Website',
+    ]
 
     SPECIALS = {
         'Auction': 'Auction Store',
-        'Demo': 'Demonstrations',
+        'Demos': 'Demonstrations',
         'Juniors': 'Junior Events',
         'Open Gaming': 'Open Gaming',
         'Registration': 'Registration',
         'Seminar': 'Meetings and Seminars',
+        'Shuttle': 'Airport Shuttle',
         'Vendors': 'Vendors',
     }
 
@@ -167,47 +180,65 @@ class WbcNewSchedule(WbcSchedule):
 
         LOG.debug('Reading new-format Excel spreadsheet from %s', self.filename)
 
-        book = xlrd.open_workbook(self.filename)
-        sheet = book.sheet_by_name(self.TAB)
+        # Load the Excel workbook
+        book = openpyxl.load_workbook(self.filename)
+
+        # Locate the data sheet in the available worksheets
+        for tab in self.TABS:
+            if tab in book.sheetnames:
+                sheet = book[tab]
+                break
+        else:
+            sheet = book.active
+            LOG.warning('Unable to locate data sheet by name, using %s', sheet.title)
 
         # Locate header row (first column named 'Date')
-        header_row = 0
-        key = sheet_value(sheet, header_row, 0)
-        while key != 'Date' and header_row < sheet.nrows:
-            header_row += 1
-            key = sheet_value(sheet, header_row, 0)
+        rbase = 1
+        cbase = 1
+        nrows = sheet.max_row
+        ncols = sheet.max_column
 
-        if header_row >= sheet.nrows:
+        header_row = 1
+        key = sheet_value(sheet, header_row, cbase)
+        while key != 'Date' and header_row < nrows:
+            header_row += 1
+            key = sheet_value(sheet, header_row, cbase)
+
+        if header_row >= nrows:
             raise ValueError('Did not find header row in %s' % self.filename)
 
         # Read header names
         header = []
-        for header_col in range(sheet.ncols):
+        for header_col in range(cbase, ncols+cbase):
             key = None
             try:
                 key = sheet_value(sheet, header_row, header_col)
                 if key:
                     header.append(key)
+                else:
+                    raise ValueError('Invalid Column Header %d (%s)' % (header_col, key))
             except Exception:
                 raise ValueError('Unable to parse Column Header %d (%s)' % (header_col, key))
 
         # Scan Date column looking for earliest date (should be First Friday)
-        for data_row in range(header_row + 1, sheet.nrows):
-            row_date = text_to_datetime(sheet_value(sheet, data_row, 0))
+        for data_row in range(header_row + 1, nrows+rbase):
+            row_date = text_to_datetime(sheet_value(sheet, data_row, cbase))
             self.meta.check_date(row_date)
 
         # Read data rows
-        for data_row in range(header_row + 1, sheet.nrows):
+        rows = list(sheet.rows)
+        for data_row in range(header_row + 1, nrows+rbase):
             # if self.meta.verbose:
             #     LOG.debug('Reading row %d', data_row + 1)
 
             try:
-                sheet_row = sheet.row(data_row)
-                event_row = WbcNewRow(self, data_row + 1, header, sheet_row, book.datemode)
+                sheet_row = rows[data_row-rbase]
+                event_row = WbcNewRow(self, data_row, header, sheet_row, None)
 
                 code = event_row.code
                 if not code:
-                    pass
+                    LOG.warning("Skipping spreadsheet row %d: no code: %s", data_row, event_row )
+                    continue
                 elif code in self.events:
                     self.events[code].append(event_row)
                 else:
@@ -217,9 +248,9 @@ class WbcNewSchedule(WbcSchedule):
                 self.calendars.create_event(calendar, event_row, replace=False)
 
             except Exception as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                LOG.error("On line %d, skipping spreadsheet row %d: %s" % (
-                    exc_tb.tb_lineno, data_row + 1, e.message))
+                LOG.exception("Skipping spreadsheet row %d:", data_row)
+                # exc_type, exc_obj, exc_tb = sys.exc_info()
+                # LOG.error("On line %d, skipping spreadsheet row %d: %s(%s)", exc_tb.tb_lineno, data_row, e.__class__.__name__, e)
                 pass
 
     # ----- Testing --------------------------------------------------------------

@@ -22,13 +22,13 @@ import logging
 from WbcAllInOne import WbcAllInOne
 from WbcCalendars import WbcWebcal
 from WbcMetadata import WbcMetadata
-from WbcNewSpreadsheet import WbcNewSchedule
-from WbcOldSpreadsheet import WbcOldSchedule
 from WbcPreview import WbcPreview
 from WbcScheduleComparison import ScheduleComparer
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger('requests').setLevel(logging.WARN)
+logging.getLogger('urllib3').setLevel(logging.WARN)
+
 LOG = logging.getLogger('WBC')
 
 # ----- Real work happens here ------------------------------------------------
@@ -42,8 +42,10 @@ if __name__ == '__main__':
     # Load a schedule from a spreadsheet, and populate the calendars, based upon commandline options.
     wbc_schedule = None
     if meta.type == 'old':
+        from WbcOldSpreadsheet import WbcOldSchedule
         wbc_schedule = WbcOldSchedule(meta, wbc_calendars)
     elif meta.type == 'new':
+        from WbcNewSpreadsheet import WbcNewSchedule
         wbc_schedule = WbcNewSchedule(meta, wbc_calendars)
     else:
         raise ValueError('Did not recognize spreadsheet type: %s' % meta.type)
@@ -57,10 +59,10 @@ if __name__ == '__main__':
     wbc_preview = WbcPreview(meta)
 
     # Parse the WBC All-in-One schedule
-    wbc_allinone = WbcAllInOne(meta)
+    wbc_allinone = None # WbcAllInOne(meta)
 
     # Compare the event calendars with the WBC All-in-One schedule and the preview
-    comparer = ScheduleComparer(meta, wbc_schedule, wbc_allinone, wbc_preview)
-    comparer.verify_event_calendars()
+    # comparer = ScheduleComparer(meta, wbc_calendars, wbc_allinone, wbc_preview)
+    # comparer.verify_event_calendars()
 
     LOG.info("Done.")

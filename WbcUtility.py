@@ -14,12 +14,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from web import Web
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, time
 
 import logging
 import pytz
 import unicodedata
-import xlrd
 
 LOGGER = logging.getLogger('WbcUtility')
 
@@ -27,42 +26,46 @@ LOGGER = logging.getLogger('WbcUtility')
 # ----- Text Functions --------------------------------------------------------
 
 def normalize(utext):
-    return unicodedata.normalize('NFKD', utext).encode('ascii', 'ignore')
+    # return unicodedata.normalize('NFKD', utext).encode('ascii', 'ignore')
+    return unicodedata.normalize('NFKD', utext)
 
 
 def nu_strip(string):
     return normalize(str(string)).strip()
 
+# ----- Replacement Functions -------------------------------------------------
+
+def cmp(a, b):
+    return int(a > b) - int(a < b)
 
 # ----- Spreadsheet Functions -------------------------------------------------
 
-def parse_value(data):
-    if data.ctype == xlrd.XL_CELL_EMPTY:
-        data = None
-    elif data.ctype == xlrd.XL_CELL_TEXT:
-        data = unicodedata.normalize('NFKD', data.value).encode('ascii', 'ignore').strip()
-        if data == '--':  # Assume that '--' really means an empty cell
-            data = None
-    elif data.ctype == xlrd.XL_CELL_NUMBER:
-        data = float(data.value)
-    elif data.ctype == xlrd.XL_CELL_DATE:
-        data = xlrd.xldate_as_tuple(data.value, 0)  # sheet.book.datemode
-        if data[0]:
-            data = datetime(*data)  # pylint: disable=W0142
-        else:
-            data = time(data[3], data[4], data[5])
+def parse_value(cell):
+    text = cell.value
+
+    if text is None or text == '--':
+        return None
+
+    if cell.data_type == 'n': # number
+        return float(text)
+
+    elif cell.data_type == 's': # string
+        try:
+            data = datetime.strptime(text,'%m/%d/%y')
+            return data
+        except ValueError:
+            return text
+
     else:
-        raise ValueError("Unhandled Excel cell type (%s)" % data.ctype)
-
-    return data
-
+        raise ValueError(f'Unhandled Excel cell type ({cell.data_type}) @ {cell.coordinate}')
+        
 
 def sheet_value(sheet, row, col):
     try:
         v = sheet.cell(row, col)
         return parse_value(v)
     except ValueError as e:
-        raise ValueError(e.message + "@(%d, %d)" % (row, col))
+        raise ValueError(f'{str(e)} @({row}, {col})')
 
 
 # ----- Time Functions --------------------------------------------------------
