@@ -41,9 +41,9 @@ class WbcNewRow(WbcRow):
 
     Date
     """
-    KEYS = ['Date', 'Day', 'Day Code', 'Time', 'Event Code', 'Event', 'Type', 'Round/Heat', 'Prize Level', 'Class',
+    KEYS = ['Date', 'Day', 'Day Code', 'Time', 'Event Code', 'Event', 'Round/Heat', 'Type', 'Prize Level', 'Class',
             'Format', 'Style', 'Duration', 'Location', 'GM', 'Category']
-    FIELDS = ['Date', 'Day', 'DayCode', 'Time', 'Code', 'Name', 'Type', 'RType', 'Prize', 'Class', 'Format', 'Style',
+    FIELDS = ['Date', 'Day', 'DayCode', 'Time', 'Code', 'Name', 'RType', 'Type', 'Prize', 'Class', 'Format', 'Style',
               'Duration', 'Location', 'GM', 'Category']
 
     def __init__(self, *args):
@@ -71,75 +71,80 @@ class WbcNewRow(WbcRow):
         self.event = self.name
 
     def initialize(self):
-        if self.line in [25]:
-            pass
+        try:
+            if self.line in [25]:
+                pass
 
-        # Excel library 'helps' us by treating numeric strings as numbers, not text
-        if isinstance(self.code, float):
-            self.code = str(int(self.code))
-            
-        if self.code and self.code in self.meta.MISCODES:
-            self.code = self.meta.MISCODES[self.code]
+            # Excel library 'helps' us by treating numeric strings as numbers, not text
+            for string_field in ['code', 'name', 'event']:
+                if isinstance(getattr(self, string_field), float):
+                    setattr(self, string_field, str(int(getattr(self, string_field))))
+                
+            if self.code and self.code in self.meta.MISCODES:
+                self.code = self.meta.MISCODES[self.code]
 
-        # Capture metadata that used to be hand-jammed
-        if self.code not in self.meta.names:
-            self.meta.names[self.code] = self.event
-            self.meta.codes[self.event] = self.code
-            self.meta.tourneys.append(self.code)
+            # Capture metadata that used to be hand-jammed
+            if self.code not in self.meta.names:
+                self.meta.names[self.code] = self.event
+                self.meta.codes[self.event] = self.code
+                self.meta.tourneys.append(self.code)
 
-        # Pseudo Code for non-tournament events
-        if not self.code:
-            self.code = self.type
-        if self.type in ['Meeting', 'Services']:
-            self.code = 'Seminar'
+            # Pseudo Code for non-tournament events
+            if not self.code:
+                self.code = self.type
+            if self.type in ['Meeting', 'Services']:
+                self.code = 'Seminar'
 
-        # Create old-style fields
-        self.continuous = 'Y' if self.style == 'Continuous' else ''
-        if self.rtype:
-            self.name += ' ' + self.rtype
-        # self.rtype = self.round if self.round else None
+            # Create old-style fields
+            self.continuous = 'Y' if self.style == 'Continuous' else ''
+            if self.rtype:
+                self.name += ' ' + self.rtype
+            # self.rtype = self.round if self.round else None
 
-        # Clean up dates and times, because people still refuse to use date and time fields in Excel
-        if isinstance(self.date, datetime):
-            self.datetime = self.date
-        if isinstance(self.date, str):
-            self.datetime = text_to_datetime(self.date)
+            # Clean up dates and times, because people still refuse to use date and time fields in Excel
+            if isinstance(self.date, datetime):
+                self.datetime = self.date
+            if isinstance(self.date, str):
+                self.datetime = text_to_datetime(self.date)
 
-        if isinstance(self.time, str) or isinstance(self.time, float):
-            t = float(self.time) * 60
-            h = int(t / 60)
-            m = int(t % 60)
-            if h > 23:
-                h = h - 24
-                self.datetime = self.datetime + timedelta(days=1)
-            self.datetime = self.datetime.replace(hour=h, minute=m)
-            self.time = time(h, m)
+            if isinstance(self.time, str) or isinstance(self.time, float):
+                t = float(self.time) * 60
+                h = int(t / 60)
+                m = int(t % 60)
+                if h > 23:
+                    h = h - 24
+                    self.datetime = self.datetime + timedelta(days=1)
+                self.datetime = self.datetime.replace(hour=h, minute=m)
+                self.time = time(h, m)
 
-        if self.duration:
-            try:
-                l = timedelta(minutes=60 * float(self.duration))
-                self.length = round_up_timedelta(l)
-            except:
-                LOG.error("Invalid duration (%s) on %s", self.duration, self)
+            if self.duration:
+                try:
+                    l = timedelta(minutes=60 * float(self.duration))
+                    self.length = round_up_timedelta(l)
+                except:
+                    LOG.error("Invalid duration (%s) on %s", self.duration, self)
+                    self.length = timedelta(minutes=0)
+            else:
                 self.length = timedelta(minutes=0)
-        else:
-            self.length = timedelta(minutes=0)
 
-        self.date = self.datetime.replace(hour=0, minute=0, second=0, microsecond=0)
-        offset = (self.date - self.meta.first_day).days
+            self.date = self.datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+            offset = (self.date - self.meta.first_day).days
 
-        if not hasattr(self, 'day'):
-            self.day = self.meta.day_names[offset]
+            if not hasattr(self, 'day'):
+                self.day = self.meta.day_names[offset]
 
-        if self.day != self.meta.day_names[offset] and self.time != MIDNIGHT:
-            LOG.error("Mismatched day name (%s) on %s", self.day, self)
+            if self.day != self.meta.day_names[offset] and self.time != MIDNIGHT:
+                LOG.error("Mismatched day name (%s) on %s", self.day, self)
 
-        if self.daycode != self.meta.day_codes[offset] and self.time != MIDNIGHT:
-            LOG.error("Mismatched day code (%s) on %s", self.daycode, self)
+            if self.daycode != self.meta.day_codes[offset] and self.time != MIDNIGHT:
+                LOG.error("Mismatched day code (%s) on %s", self.daycode, self)
 
-        if self.line in [220, 479, 494, 502, 741, 1084, 1103]:
-            pass
-
+            if self.line in [220, 479, 494, 502, 741, 1084, 1103]:
+                pass
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            LOG.error("On line %d, skipping spreadsheet row %d: %s(%s)", exc_tb.tb_lineno, self.line, e.__class__.__name__, e)
+            raise e
 
 class WbcNewSchedule(WbcSchedule):
     """
@@ -151,6 +156,7 @@ class WbcNewSchedule(WbcSchedule):
         'by Game',
         'Chronological Website',
         'Chronlogical Website',
+        'App Version',
     ]
 
     SPECIALS = {
@@ -174,6 +180,8 @@ class WbcNewSchedule(WbcSchedule):
 
         LOG.debug('Initializing metadata for special categories of events')
         for code, name in self.SPECIALS.items():
+            if isinstance(name, float):
+                pass
             self.meta.names[code] = name
             self.meta.codes[name] = code
             self.meta.special = list(self.SPECIALS.keys())
@@ -216,13 +224,21 @@ class WbcNewSchedule(WbcSchedule):
                 if key:
                     header.append(key)
                 else:
-                    raise ValueError('Invalid Column Header %d (%s)' % (header_col, key))
-            except Exception:
+                    break
+                    # raise ValueError('Invalid Column Header %d (%s)' % (header_col, key))
+            except Exception as e:
                 raise ValueError('Unable to parse Column Header %d (%s)' % (header_col, key))
+
+        # Check for required columns
+        missing = set(WbcNewRow.KEYS) - set(header)
+        if missing:
+            raise ValueError('Missing required columns: %s' % missing)
 
         # Scan Date column looking for earliest date (should be First Friday)
         for data_row in range(header_row + 1, nrows+rbase):
             row_date = text_to_datetime(sheet_value(sheet, data_row, cbase))
+            if row_date is None:
+                continue
             self.meta.check_date(row_date)
 
         # Read data rows
@@ -231,8 +247,11 @@ class WbcNewSchedule(WbcSchedule):
             # if self.meta.verbose:
             #     LOG.debug('Reading row %d', data_row + 1)
 
+            sheet_row = rows[data_row-rbase]
+            if sheet_row[0].value == 'Open':
+                continue
+            
             try:
-                sheet_row = rows[data_row-rbase]
                 event_row = WbcNewRow(self, data_row, header, sheet_row, None)
 
                 code = event_row.code

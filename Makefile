@@ -2,14 +2,14 @@
 
 SITE=http://boardgamers.org/downloads/
 SCHEDULE=schedule
-YEAR=2023
+YEAR=2024
 EXT=.xlsx
 REMOTE=trader.name:/data/web/trader/wbc
 # REMOTE=wbc.trader.name:/var/www/wbc/schedule
 
-SPREADSHEET="2023 WBC Schedule - App vFinal.xlsx"
+# SPREADSHEET="2023 WBC Schedule - App vFinal2.xlsx"
 # SPREADSHEET="2022 WBC Schedule - App v2.0 Final.xlsx"
-# SPREADSHEET="$(SCHEDULE)$(YEAR)$(EXT)"
+SPREADSHEET="$(SCHEDULE)-$(YEAR)$(EXT)"
 OLD_SPREADSHEET=$(SCHEDULE)$(YEAR).old
 NEW_SPREADSHEET=$(SCHEDULE)$(YEAR).new
 

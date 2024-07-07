@@ -56,8 +56,11 @@ def parse_value(cell):
         except ValueError:
             return text
 
+    elif cell.data_type == 'f':
+        raise ValueError(f'Unhandled formula @ {cell.coordinate} [{text}]')
+
     else:
-        raise ValueError(f'Unhandled Excel cell type ({cell.data_type}) @ {cell.coordinate}')
+        raise ValueError(f'Unhandled Excel cell type ({cell.data_type}) @ {cell.coordinate} [{text}]')
         
 
 def sheet_value(sheet, row, col):

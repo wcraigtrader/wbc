@@ -171,9 +171,16 @@ class WbcWebcal(object):
         For a given event code, return the iCalendar that matches that code.
         If there is no pre-existing calendar, create a new one.
         """
+
+        if code in ['Demo', 'Demonstrations']:
+            code = 'Demos'
+
         if code in self.calendars:
             return self.calendars[code]
 
+        if code not in self.meta.names:
+            pass
+        
         description = "%s %s: %s" % (self.prodid, code, self.meta.names[code])
 
         calendar = Calendar()

@@ -158,7 +158,7 @@ class WbcMetadata(object):
         'Iron Men - WSM': 'WSM',
     }
 
-    SPECIAL_PREVIEWS = ['Juniors', 'Junior Events', 'Seminars', 'Demos', 'Demonstrations']
+    SPECIAL_PREVIEWS = ['Juniors', 'Junior Events', 'Seminars', 'Demo', 'Demos', 'Demonstrations']
 
     others = []  # List of non-tournament event matching data
     special = []  # List of non-tournament event codes

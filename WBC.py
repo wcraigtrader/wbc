@@ -56,7 +56,7 @@ if __name__ == '__main__':
         wbc_schedule.write_all_files()
 
     # Parse the WBC Preview
-    wbc_preview = WbcPreview(meta)
+    wbc_preview = None # WbcPreview(meta)
 
     # Parse the WBC All-in-One schedule
     wbc_allinone = None # WbcAllInOne(meta)
