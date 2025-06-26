@@ -22,6 +22,8 @@ from collections import OrderedDict
 from datetime import datetime
 from functools import total_ordering
 
+from WbcMetadata import WbcMetadata
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     logging.getLogger('requests').setLevel(logging.WARN)
@@ -81,6 +83,8 @@ class WbcRow(object):
         # read the data row using the subclass
         self.readrow(*args)
 
+        self.initialize()
+
         if self.gm is None:
             LOG.warning('Missing gm on %s', self)
             self.gm = ''
@@ -88,8 +92,6 @@ class WbcRow(object):
         if self.duration is None:
             LOG.warning('Missing duration on %s', self)
             self.duration = '0'
-
-        self.initialize()
 
         if not isinstance(self.date, datetime):
             LOG.error('Unreadable date on %s', self)
@@ -168,10 +170,10 @@ class WbcSchedule(object):
     events = {}  # Events, grouped by code and then sorted by start date/time
     unmatched = []  # List of spreadsheet rows that don't match any coded events
 
-    meta = None
+    meta: WbcMetadata|None = None
     calendars = None
 
-    def __init__(self, metadata, calendars):
+    def __init__(self, metadata: WbcMetadata, calendars):
         """
         Initialize a schedule
         """

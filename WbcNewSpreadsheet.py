@@ -66,7 +66,7 @@ class WbcNewRow(WbcRow):
                     val = parse_value(row[i])
                     self.__setattr__(key, val)
                 except ValueError as e:
-                    raise ValueError(e.message + ' for ' + labels[i])
+                    raise ValueError(str(e) + ' for ' + labels[i])
 
         self.event = self.name
 
@@ -139,8 +139,18 @@ class WbcNewRow(WbcRow):
             if self.daycode != self.meta.day_codes[offset] and self.time != MIDNIGHT:
                 LOG.error("Mismatched day code (%s) on %s", self.daycode, self)
 
-            if self.line in [220, 479, 494, 502, 741, 1084, 1103]:
+            if self.daycode and self.name in ['Open Gaming', 'Open Gaming Library', 'Registration', 'Vendors']:
+                self.name = f'{self.name} {self.daycode}'
+
+            if self.gm is None and self.type == 'Juniors':
+                self.gm = 'TBD'
+
+            if self.duration is None and self.type == 'Open Gaming':
+                self.duration = 0
+
+            if self.line in [982, ]:
                 pass
+
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             LOG.error("On line %d, skipping spreadsheet row %d: %s(%s)", exc_tb.tb_lineno, self.line, e.__class__.__name__, e)
@@ -232,7 +242,8 @@ class WbcNewSchedule(WbcSchedule):
         # Check for required columns
         missing = set(WbcNewRow.KEYS) - set(header)
         if missing:
-            raise ValueError('Missing required columns: %s' % missing)
+            names = ', '.join(list(missing))
+            raise ValueError('Missing required columns: %s' % names)
 
         # Scan Date column looking for earliest date (should be First Friday)
         for data_row in range(header_row + 1, nrows+rbase):

@@ -2,16 +2,17 @@
 
 SITE=http://boardgamers.org/downloads/
 SCHEDULE=schedule
-YEAR=2024
+YEAR=2025
 EXT=.xlsx
 REMOTE=trader.name:/data/web/trader/wbc
 # REMOTE=wbc.trader.name:/var/www/wbc/schedule
 
 # SPREADSHEET="2023 WBC Schedule - App vFinal2.xlsx"
 # SPREADSHEET="2022 WBC Schedule - App v2.0 Final.xlsx"
-SPREADSHEET="$(SCHEDULE)-$(YEAR)$(EXT)"
-OLD_SPREADSHEET=$(SCHEDULE)$(YEAR).old
-NEW_SPREADSHEET=$(SCHEDULE)$(YEAR).new
+# SPREADSHEET="$(SCHEDULE)-$(YEAR)$(EXT)"
+SPREADSHEET="schedule-2025-app-20250622-mod.xlsx"
+OLD_SPREADSHEET=$(SCHEDULE)-$(YEAR).old
+NEW_SPREADSHEET=$(SCHEDULE)-$(YEAR).new
 
 BUILD=build
 CACHE=cache
@@ -57,6 +58,9 @@ fetch:
 	  mv $(NEW_SPREADSHEET) $(SPREADSHEET) ; \
 	  echo "$(SPREADSHEET) updated" ; \
 	fi
+
+meld:
+	meld "live" "${BUILD}"
 
 prerequisites:
 	conda install -y \

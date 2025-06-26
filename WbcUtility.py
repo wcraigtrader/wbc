@@ -54,7 +54,14 @@ def parse_value(cell):
             data = datetime.strptime(text,'%m/%d/%y')
             return data
         except ValueError:
-            return text
+            try:
+                data = datetime.strptime(text, '%H:%M')
+                return data
+            except ValueError:
+                return text
+
+    elif cell.data_type == 'd':
+        return text
 
     elif cell.data_type == 'f':
         raise ValueError(f'Unhandled formula @ {cell.coordinate} [{text}]')
@@ -65,8 +72,8 @@ def parse_value(cell):
 
 def sheet_value(sheet, row, col):
     try:
-        v = sheet.cell(row, col)
-        return parse_value(v)
+        cell = sheet.cell(row, col)
+        return parse_value(cell)
     except ValueError as e:
         raise ValueError(f'{str(e)} @({row}, {col})')
 

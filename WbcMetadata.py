@@ -20,7 +20,7 @@ import os
 import re
 import sys
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, date
 from optparse import OptionParser
 
 from bs4 import NavigableString, Tag
@@ -175,8 +175,8 @@ class WbcMetadata(object):
     playlate = {}  # Flag for events that may run past midnight
     url = {}  # Code -> URL for event preview for this event code
 
-    first_day = None  # First calendar day for this year's convention
-    last_day = None  # Last calendar day for this year's convention
+    first_day: date|None = None  # First calendar day for this year's convention
+    last_day: date|None = None  # Last calendar day for this year's convention
 
     day_names = [
         'First Friday', 'First Saturday', 'First Sunday',
@@ -212,7 +212,7 @@ class WbcMetadata(object):
         parser.add_option("-i", "--input", dest="input", metavar="FILE", default=None, help="Schedule spreadsheet to process")
         parser.add_option("-o", "--output", dest="output", metavar="DIR", default="build", help="Directory for results")
         parser.add_option("-f", "--full-report", dest="fullreport", action="store_true", default=False)
-        parser.add_option("-n", "--dry-run", dest="write_files", action="store_false", default=True)
+        parser.add_option("-n", "--dryrun", dest="write_files", action="store_false", default=True)
         parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False)
         parser.add_option("-d", "--debug", dest="debug", action="store_true", default=False)
 
@@ -300,7 +300,7 @@ class WbcMetadata(object):
                     line += 1
                     continue
 
-                for column in range(0, 8):  # Always 8 cells
+                for column in range(0, len(top)):  # Always 8 cells
                     link = name = code = None
 
                     top_column = top[column]
@@ -387,9 +387,9 @@ class WbcMetadata(object):
                         self.url[code] = self.SITE_URL + link
 
             except Exception as e:
-                LOG.exception("Skipping preview row %d, column %d:", line / 3, column)
+                LOG.exception("Skipping event preview row %d, column %d:", line / 3, column)
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                LOG.warn("On line %d, skipping preview row %d, column %d: %s", exc_tb.tb_lineno, line / 3, column, getattr(e, 'message', '---'))
+                LOG.warning("On line %d, skipping event preview row %d, column %d: %s", exc_tb.tb_lineno, line / 3, column, getattr(e, 'message', '---'))
                 pass
 
             line += 3  # Lines should be in groups of 3
