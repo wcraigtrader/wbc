@@ -10,7 +10,7 @@ REMOTE=trader.name:/data/web/trader/wbc
 # SPREADSHEET="2023 WBC Schedule - App vFinal2.xlsx"
 # SPREADSHEET="2022 WBC Schedule - App v2.0 Final.xlsx"
 # SPREADSHEET="$(SCHEDULE)-$(YEAR)$(EXT)"
-SPREADSHEET="schedule-2025-app-20250622-mod.xlsx"
+SPREADSHEET="schedule-2025-app-20250712-mod.xlsx"
 OLD_SPREADSHEET=$(SCHEDULE)-$(YEAR).old
 NEW_SPREADSHEET=$(SCHEDULE)-$(YEAR).new
 
